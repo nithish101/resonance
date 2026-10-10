@@ -257,5 +257,10 @@ test.describe("DSP in the browser (M3)", () => {
     // 120 BPM = 2 clicks/s; allow for the 0.5 s lead-in and timing slop.
     expect(n).toBeGreaterThanOrEqual(7);
     expect(n).toBeLessThanOrEqual(11);
+    // Tempo (DSP-6) needs about 3 s of onset envelope before its first estimate.
+    await expect
+      .poll(async () => (await state(page)).dsp?.bpm ?? 0, { timeout: 15_000 })
+      .toBeGreaterThan(118);
+    expect((await state(page)).dsp!.bpm).toBeLessThan(122);
   });
 });

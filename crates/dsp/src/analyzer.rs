@@ -10,6 +10,7 @@ use crate::fft::RealFft;
 use crate::frame::*;
 use crate::mel::MelBank;
 use crate::onset::OnsetDetector;
+use crate::tempo::TempoEstimator;
 use crate::window::hann;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -80,6 +81,7 @@ pub struct Analyzer {
     gate_env: Follower,
     gate_open: bool,
     onsets: OnsetDetector,
+    tempo: TempoEstimator,
     bin_hz: Vec<f32>,
     sensitivity: f32,
     smoothing: f32,
@@ -131,6 +133,7 @@ impl Analyzer {
             gate_env: Follower::new(0.03, 0.25, rate),
             gate_open: false,
             onsets: OnsetDetector::new(MEL_BANDS, rate, 0.06),
+            tempo: TempoEstimator::new(rate),
             bin_hz,
             sensitivity: 1.0,
             smoothing: 0.5,
@@ -189,6 +192,7 @@ impl Analyzer {
         self.gate_env.value = 0.0;
         self.gate_open = false;
         self.onsets.reset();
+        self.tempo.reset();
     }
 
     fn range_db(&self) -> f32 {
@@ -267,6 +271,8 @@ impl Analyzer {
             self.onset_db[b] = self.mel_db[b].max(self.mel_peak[b].db - ONSET_FLOOR_DB);
         }
         let (flux, onset) = self.onsets.update(&self.onset_db, self.gate_open);
+        // Tempo from the onset-strength envelope (DSP-6); silence contributes nothing.
+        self.tempo.push(if self.gate_open { flux } else { 0.0 });
 
         // Normalized mel for display: per-bin reference, capped relative to the strongest bin.
         for b in 0..MEL_BANDS {
@@ -319,6 +325,8 @@ impl Analyzer {
         f[RMS] = rms;
         f[LOUDNESS] = self.loudness_env.update(loudness) * gate;
         f[GATE] = if self.gate_open { 1.0 } else { 0.0 };
+        f[BPM] = self.tempo.bpm;
+        f[TEMPO_CONFIDENCE] = self.tempo.confidence;
         f[KEY] = -1.0;
         self.hops += 1;
     }

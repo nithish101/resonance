@@ -40,7 +40,7 @@ Source of truth: [`PRD.md`](../PRD.md). Requirement IDs and priorities (P0/P1/P2
 - [x] **M3 DSP core.** DSP-1 to DSP-5, DSP-10, DSP-11. FFT (checked against rustfft), STFT,
       Slaney mel, six bands with envelopes and auto-gain plus a noise gate, flux onsets, centroid
       and RMS, the feature-frame writer, proptest, criterion, and integration into the DSP worker.
-- [ ] **M4 Tempo.** DSP-6. Autocorrelation of the onset envelope with a log-Gaussian prior;
+- [x] **M4 Tempo.** DSP-6. Autocorrelation of the onset envelope with a log-Gaussian prior;
       click-track tests at 70, 90, 120, 140, and 174 BPM.
 - [ ] **M5 Rendering v1.** RD-1, RD-3, RD-4, RD-10, RD-13. Renderer interface, WebGL2 backend,
       Spectral Tunnel, worker → main-thread fallback, seqlock frame reader with interpolation,

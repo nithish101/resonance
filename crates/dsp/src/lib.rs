@@ -3,7 +3,7 @@
 //!
 //! Pipeline per hop: STFT (Hann, [`fft::RealFft`]) → power spectrum → 64-band Slaney mel
 //! ([`mel::MelBank`]) → six band energies with envelopes and auto-gain → spectral-flux onsets
-//! ([`onset::OnsetDetector`]) → centroid and loudness → one fixed-layout feature frame
+//! ([`onset::OnsetDetector`]) → autocorrelation tempo ([`tempo::TempoEstimator`]) → centroid and loudness → one fixed-layout feature frame
 //! ([`frame`]). See docs/dsp-notes.md for the maths and the reasoning behind each parameter.
 
 pub mod analyzer;
@@ -15,6 +15,7 @@ pub mod frame;
 pub mod mel;
 pub mod offline;
 pub mod onset;
+pub mod tempo;
 pub mod window;
 
 pub use analyzer::{Analyzer, Config};

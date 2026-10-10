@@ -15,6 +15,7 @@ export interface StateSnapshot {
     bands: number[];
     gate: number;
     onsets: number;
+    bpm: number;
   } | null;
   playback: { playing: boolean; time: number; duration: number };
 }

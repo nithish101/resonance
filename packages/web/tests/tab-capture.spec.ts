@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { state } from "./helpers";
 
 // End-to-end tab capture (IN-4) through the real getDisplayMedia path: the share dialog is

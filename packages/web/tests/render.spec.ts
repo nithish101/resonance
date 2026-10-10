@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { luminanceStats, renderState, state } from "./helpers";
 
 async function playAndShoot(page: import("@playwright/test").Page) {

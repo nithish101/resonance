@@ -48,6 +48,11 @@ export interface DspStats {
   gate: number;
   /** Onsets detected since the analyzer started. */
   onsets: number;
+  /** Per-hop onset strength and onset flags since the previous stats message (debug plot). */
+  fluxHistory: number[];
+  onsetHistory: number[];
+  /** Newest mel spectrum (for the overlay when frames aren't in shared memory). */
+  mel: number[];
   /** Newest frame's centre, in audio-context seconds. */
   frameTime: number;
   /** Wall-clock (performance.timeOrigin + now) when that frame was published, ms. */

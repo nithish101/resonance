@@ -447,3 +447,251 @@ input[type="range"]::-moz-range-thumb {
   gap: 6px;
   align-items: start;
 }
+
+/* Photosensitivity gate (AX-1) */
+
+.gate {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(6, 7, 9, 0.92);
+  z-index: 10;
+}
+
+.gate-card {
+  width: min(520px, 100%);
+  padding: 28px;
+  background: var(--surface-solid);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+}
+
+.gate-card h1 {
+  margin: 4px 0 12px;
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.gate-card p {
+  color: var(--text-dim);
+  margin: 0 0 12px;
+}
+
+.gate-card .row {
+  margin-top: 20px;
+}
+
+/* Capability pill and banner (UI-5) */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  margin-right: 8px;
+  padding: 0 10px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.notice.banner {
+  top: auto;
+  bottom: 96px;
+}
+
+/* Settings panel (UI-2) */
+
+.panel {
+  position: absolute;
+  top: 60px;
+  right: 16px;
+  bottom: 96px;
+  width: min(320px, calc(100vw - 32px));
+  overflow: auto;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  backdrop-filter: blur(18px);
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.panel h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.panel fieldset {
+  margin: 14px 0 0;
+  padding: 14px 0 0;
+  border: 0;
+  border-top: 1px solid var(--rule);
+}
+
+.panel legend {
+  padding: 0;
+  margin-bottom: 8px;
+  float: left;
+  width: 100%;
+}
+
+.field {
+  clear: both;
+  display: grid;
+  gap: 4px;
+  margin: 0 0 12px;
+}
+
+.field-head {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-dim);
+}
+
+.field label,
+.field-label {
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.field .hint {
+  margin: 0;
+}
+
+.field input[type="range"] {
+  width: 100%;
+}
+
+.field.toggle {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+
+.field.toggle .hint {
+  grid-column: 1 / -1;
+}
+
+input[type="checkbox"][role="switch"] {
+  appearance: none;
+  position: relative;
+  width: 30px;
+  height: 18px;
+  margin: 0;
+  border-radius: 999px;
+  background: var(--rule-strong);
+  cursor: pointer;
+  transition: background 120ms var(--ease);
+}
+
+input[type="checkbox"][role="switch"]::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text);
+  transition: transform 120ms var(--ease);
+}
+
+input[type="checkbox"][role="switch"]:checked {
+  background: var(--accent);
+}
+
+input[type="checkbox"][role="switch"]:checked::after {
+  transform: translateX(12px);
+  background: var(--bg);
+}
+
+.swatches {
+  display: flex;
+  gap: 8px;
+}
+
+.swatch {
+  width: 44px;
+  height: 22px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.swatch[aria-checked="true"] {
+  outline: 1px solid var(--text);
+  outline-offset: 2px;
+}
+
+/* Debug overlay (UI-3) */
+
+.debug {
+  position: absolute;
+  top: 60px;
+  left: 16px;
+  width: 300px;
+  padding: 12px 14px;
+  background: rgba(10, 11, 13, 0.82);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.debug table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.debug th {
+  padding: 2px 0;
+  text-align: left;
+  font-weight: 400;
+  color: var(--text-dim);
+}
+
+.debug td {
+  text-align: right;
+}
+
+.debug .label {
+  margin: 12px 0 4px;
+}
+
+.debug canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-bottom: 1px solid var(--rule);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chrome,
+  .btn,
+  .icon-btn,
+  input[type="checkbox"][role="switch"],
+  input[type="checkbox"][role="switch"]::after {
+    transition: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .debug {
+    width: calc(100vw - 32px);
+  }
+  .transport {
+    grid-template-columns: auto 1fr;
+  }
+  .transport .row {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+}

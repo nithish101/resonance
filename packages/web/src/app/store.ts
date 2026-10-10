@@ -39,6 +39,18 @@ export interface AppState {
   render: RenderStats | null;
   renderer: RendererInfo | null;
   settings: Settings;
+  ui: UiState;
+}
+
+export interface UiState {
+  settingsOpen: boolean;
+  debugOpen: boolean;
+  /** Controls faded out during playback (UI-1). */
+  chromeHidden: boolean;
+  /** The photosensitivity warning has been acknowledged (AX-1). */
+  warningAccepted: boolean;
+  /** The capability notice has been dismissed for this session. */
+  bannerDismissed: boolean;
 }
 
 /** Everything user-adjustable (UI-2). Analysis params go to the DSP worker, the rest to the renderer. */
@@ -66,6 +78,13 @@ export const initialState: AppState = {
   render: null,
   renderer: null,
   settings: DEFAULT_APP_SETTINGS,
+  ui: {
+    settingsOpen: false,
+    debugOpen: false,
+    chromeHidden: false,
+    warningAccepted: false,
+    bannerDismissed: false,
+  },
 };
 
 export const useApp = create<AppState>()(() => initialState);
@@ -73,3 +92,6 @@ export const useApp = create<AppState>()(() => initialState);
 export const setApp = (patch: Partial<AppState>) => useApp.setState(patch);
 export const setPlayback = (patch: Partial<Playback>) =>
   useApp.setState((s) => ({ playback: { ...s.playback, ...patch } }));
+
+export const setUi = (patch: Partial<UiState>) =>
+  useApp.setState((s) => ({ ui: { ...s.ui, ...patch } }));

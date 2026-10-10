@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { state, wav } from "./helpers";
 
 test.describe("audio pipeline", () => {

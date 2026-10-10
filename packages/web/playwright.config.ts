@@ -56,7 +56,8 @@ export default defineConfig({
     command: dev ? "pnpm exec vite" : "pnpm exec vite build && pnpm exec vite preview",
     env: { RESONANCE_TEST_PAGES: "1" },
     port,
-    reuseExistingServer: !process.env.CI,
+    // Always build fresh: reusing a stray preview server silently tests a stale build.
+    reuseExistingServer: false,
     timeout: 180_000,
   },
 });

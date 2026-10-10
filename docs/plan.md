@@ -45,7 +45,7 @@ Source of truth: [`PRD.md`](../PRD.md). Requirement IDs and priorities (P0/P1/P2
 - [x] **M5 Rendering v1.** RD-1, RD-3, RD-4, RD-10, RD-13. Renderer interface, WebGL2 backend,
       Spectral Tunnel, worker → main-thread fallback, seqlock frame reader with interpolation,
       adaptive quality, visibility pause.
-- [ ] **M6 UI and safety.** UI-1, UI-2, UI-3, UI-5, AX-1 to AX-4, ER-4, ER-5. Controls, debug
+- [x] **M6 UI and safety.** UI-1, UI-2, UI-3, UI-5, AX-1 to AX-4, ER-4, ER-5. Controls, debug
       overlay, capability banner, photosensitivity gate, WCAG flash limiter, reduced motion, axe.
 - [ ] **M7 Timing.** PRD §6.3. Output-clock targeting, A/V sync error and input latency in the
       overlay, `docs/latency.md`.
@@ -158,3 +158,6 @@ Real problems hit during the build and how they were solved. Source for the READ
   twiddles stage by stage (contiguous per stage, with a separate conjugate table for the
   inverse) brought it to 5.2 µs. rustfft is still about 2x faster (it uses NEON and mixed
   radices); that's an accepted trade-off for a readable from-scratch FFT.
+- **Stale preview server.** Playwright's `reuseExistingServer` silently reused a `vite preview`
+  left running from a manual screenshot session, so a whole batch of new UI tests "failed"
+  against an old build. The config now always starts its own server.

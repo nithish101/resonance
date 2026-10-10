@@ -1,0 +1,21 @@
+[package]
+name = "resonance-dsp-wasm"
+version = "0.1.0"
+description = "wasm-bindgen bindings for resonance-dsp"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+resonance-dsp = { path = "../dsp" }
+wasm-bindgen = "0.2"
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-O3"]

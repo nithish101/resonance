@@ -1,0 +1,15 @@
+[package]
+name = "resonance-fixtures"
+version = "0.1.0"
+description = "Deterministic synthetic audio fixtures with exact ground-truth annotations"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "resonance-fixtures"
+path = "src/main.rs"

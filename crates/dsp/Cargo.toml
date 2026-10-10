@@ -1,0 +1,16 @@
+[package]
+name = "resonance-dsp"
+version = "0.1.0"
+description = "Real-time music analysis: FFT, STFT, mel, onsets, tempo, beats, chroma"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+
+[dev-dependencies]
+resonance-fixtures = { path = "../fixtures" }

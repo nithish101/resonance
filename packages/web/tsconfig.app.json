@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "tsBuildInfoFile": "node_modules/.tmp/app.tsbuildinfo"
+  },
+  "include": ["src"],
+  "exclude": ["src/workers", "src/audio/worklet", "src/**/*.worker.ts", "src/wasm"]
+}

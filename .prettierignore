@@ -1,0 +1,11 @@
+pnpm-lock.yaml
+target/
+dist/
+coverage/
+packages/web/src/wasm/
+packages/web/public/audio/
+playwright-report/
+test-results/
+infra/cdk.out/
+.lighthouseci/
+PRD.md

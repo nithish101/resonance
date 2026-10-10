@@ -1,0 +1,46 @@
+{
+  "name": "resonance",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "packageManager": "pnpm@10.34.6",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "wasm": "node scripts/build-wasm.mjs",
+    "fixtures": "cargo run --quiet --release -p resonance-fixtures -- packages/web/public/audio/fixtures",
+    "prepare-assets": "pnpm wasm && pnpm fixtures",
+    "dev": "pnpm prepare-assets && pnpm --filter @resonance/web dev",
+    "build": "pnpm prepare-assets && pnpm --filter @resonance/web build",
+    "preview": "pnpm --filter @resonance/web preview",
+    "lint": "eslint . && prettier --check . && cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings",
+    "format": "prettier --write . && cargo fmt --all",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm test:rust && pnpm test:unit && pnpm test:e2e",
+    "test:rust": "cargo test --workspace",
+    "test:unit": "pnpm -r test:unit",
+    "test:e2e": "pnpm --filter @resonance/web test:e2e",
+    "bench": "node scripts/bench.mjs",
+    "eval": "node scripts/eval.mjs",
+    "capture": "node scripts/capture.mjs",
+    "size": "node scripts/size-budget.mjs",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.12.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.7",
+    "globals": "^17.13.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
+    "prettier": "^3.9.10",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.71.1"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,mjs,json,md,yml,yaml,css}": "prettier --write",
+    "*.rs": "rustfmt --edition 2021"
+  }
+}

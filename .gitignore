@@ -1,0 +1,13 @@
+node_modules/
+dist/
+target/
+packages/web/src/wasm/pkg*/
+packages/web/public/audio/fixtures/
+test-results/
+playwright-report/
+.lighthouseci/
+infra/cdk.out/
+coverage/
+*.log
+.DS_Store
+.env*

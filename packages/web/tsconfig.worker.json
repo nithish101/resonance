@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "WebWorker"],
+    "tsBuildInfoFile": "node_modules/.tmp/worker.tsbuildinfo"
+  },
+  "include": [
+    "src/workers",
+    "src/**/*.worker.ts",
+    "src/lib",
+    "src/render",
+    "src/audio/shared",
+    "src/vite-env.d.ts"
+  ],
+  "exclude": ["src/**/*.test.ts"]
+}

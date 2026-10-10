@@ -31,6 +31,8 @@ export default defineConfig({
             // Fake capture devices for the mic and tab-capture tests.
             "--use-fake-ui-for-media-stream",
             "--use-fake-device-for-media-stream",
+            // Don't play test audio through the machine's speakers. Timing still runs.
+            "--mute-audio",
           ],
         },
       },
@@ -47,6 +49,7 @@ export default defineConfig({
           args: [
             "--auto-select-tab-capture-source-by-title=ToneSource",
             "--autoplay-policy=no-user-gesture-required",
+            "--mute-audio",
           ],
         },
       },

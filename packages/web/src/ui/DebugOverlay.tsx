@@ -94,7 +94,20 @@ export function DebugOverlay() {
     ["Frame time (CPU)", fmt(render?.frameMs, 2, " ms")],
     ["Frame interval p95", fmt(render?.intervalP95, 1, " ms")],
     ["DSP per hop p50·p95", dsp ? `${fmt(dsp.dspP50, 0)} · ${fmt(dsp.dspP95, 0)} µs` : "—"],
-    [live ? "Input latency" : "A/V sync error", "—", "sync"],
+    live
+      ? [
+          "Input latency (est.)",
+          render?.inputLatencyMs ? fmt(render.inputLatencyMs, 1, " ms") : "—",
+          "sync",
+        ]
+      : [
+          "A/V sync error p50·p95",
+          render && render.mode === 1
+            ? `${fmt(render.syncErrorMs, 1)} · ${fmt(render.syncErrorP95, 1)} ms`
+            : "—",
+          "sync",
+        ],
+    ["Analysis lead", render && render.mode === 1 ? fmt(render.leadMs, 0, " ms") : "—", "lead"],
     ["Ring overruns", dsp ? `${dsp.overrunSamples} samples` : "—", "overruns"],
     [
       "Renderer",

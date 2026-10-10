@@ -35,3 +35,13 @@ export const TRACKS: readonly Track[] = [
     source: "https://freemusicarchive.org/music/play-house/single/play-house-free/",
   },
 ];
+
+/** The camera calibration track (docs/latency.md): a click every 0.5 s. */
+export const CALIBRATION_TRACK: Track = {
+  id: "calibration",
+  title: "Calibration clicks (120 BPM)",
+  artist: "Resonance fixture",
+  url: "/audio/fixtures/click-120.wav",
+  license: "MIT",
+  source: "crates/fixtures",
+};

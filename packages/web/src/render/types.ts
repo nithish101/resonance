@@ -5,7 +5,8 @@
 import type { Features } from "./features";
 import type { Palette } from "./palettes";
 
-export type ModeId = "tunnel" | "nebula" | "bloom";
+/** "calibrate" is the hidden camera-check mode (docs/latency.md), selected with ?calibrate=1. */
+export type ModeId = "tunnel" | "nebula" | "bloom" | "calibrate";
 export type BackendKind = "webgpu" | "webgl2";
 export type RendererLocation = "worker" | "main";
 

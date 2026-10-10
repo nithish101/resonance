@@ -2,6 +2,7 @@
 // render worker and the main-thread fallback, and by capture mode (RD-11), so all three draw
 // identical pixels for the same audio.
 
+import { inputLatencyEstimate, type ClockSample } from "../lib/clock";
 import { F } from "../lib/frames";
 import { FlashLimiter } from "./flash";
 import { type FrameReader, type Features, createFeatures } from "./features";
@@ -17,8 +18,18 @@ export interface RenderStats {
   intervalP95: number;
   quality: number;
   scale: number;
-  /** Target time minus the time of the frame shown, ms (A/V sync error; M7). */
+  /** 0 idle, 1 file (synced to output), 2 live. */
+  mode: number;
+  /**
+   * File mode: target time minus the time of the features shown, ms. Positive means the
+   * visuals trail the audio. Median and 95th percentile of the absolute value.
+   */
   syncErrorMs: number;
+  syncErrorP95: number;
+  /** File mode: how far the newest analysed frame is ahead of the target, ms. */
+  leadMs: number;
+  /** Live mode: estimated capture-to-photon latency, ms (median). */
+  inputLatencyMs: number;
   flashesSuppressed: number;
 }
 
@@ -35,6 +46,9 @@ export class RenderCore {
   private intervals: number[] = [];
   private works: number[] = [];
   private syncErrors: number[] = [];
+  private leads: number[] = [];
+  private latencies: number[] = [];
+  private mode = 0;
 
   constructor(
     private readonly backend: Backend,
@@ -98,6 +112,14 @@ export class RenderCore {
     s.bass += (bassNow - s.bass) * (1 - Math.exp(-dt / 0.06));
     s.travel += dt * (0.12 + 0.55 * d[F.loudness]! + 0.45 * s.bass) * (0.4 + 0.6 * intensity);
     s.pulse = f.onset ? 1 : s.pulse * Math.exp(-dt / 0.16);
+    if (s.settings.mode === "calibrate") {
+      // Camera check: a plain on/off square wave, exempt from intensity scaling. Clicks are 2 per
+      // second, inside the 3-per-second flash limit, so the limiter never alters it.
+      s.flash = this.limiter.apply(s.pulse > 0.5 ? 1 : 0, time);
+      s.time = time;
+      s.dt = dt;
+      return s;
+    }
     // Shockwave-style flashes are disabled under reduced motion (AX-3).
     const wanted = s.settings.reducedMotion ? 0 : s.pulse * 0.6 * s.settings.intensity;
     s.flash = this.limiter.apply(wanted, time);
@@ -106,14 +128,25 @@ export class RenderCore {
     return s;
   }
 
-  /** One interactive frame. `target` is an audio-context sample position, or null for live. */
-  frame(nowMs: number, intervalMs: number, target: number | null): void {
+  /**
+   * One interactive frame at absolute time `nowAbs` (ms). `target` is the audio-context sample
+   * position to show, or null for the newest frame (live).
+   */
+  frame(nowAbs: number, intervalMs: number, target: number | null, clock?: ClockSample): void {
     const t0 = performance.now();
     if (this.reader) this.reader.sample(target, this.features);
     const sr = this.reader?.sampleRate || 48_000;
     const time = this.features.valid ? this.features.time / sr : Math.max(0, this.lastTime);
-    if (target !== null && this.features.valid) {
-      this.syncErrors.push(((target - this.features.time) / sr) * 1000);
+    this.mode = clock?.mode ?? 0;
+    if (this.features.valid && clock) {
+      if (target !== null) {
+        this.syncErrors.push(((target - this.features.time) / sr) * 1000);
+        this.leads.push((this.features.lead / sr) * 1000);
+      } else if (clock.mode === 2) {
+        this.latencies.push(
+          inputLatencyEstimate(clock, nowAbs, this.features.time, this.refresh.intervalMs) * 1000,
+        );
+      }
     }
     this.backend.draw(this.step(time));
     const work = performance.now() - t0;
@@ -123,7 +156,6 @@ export class RenderCore {
     if (intervalMs > 0 && this.quality.update(intervalMs, work)) this.applySize();
     this.intervals.push(intervalMs);
     this.works.push(work);
-    void nowMs;
   }
 
   /** Summarizes and clears the stats window. */
@@ -145,12 +177,18 @@ export class RenderCore {
       intervalP95: p95(this.intervals),
       quality: this.quality.level,
       scale: this.quality.current.scale,
-      syncErrorMs: med(this.syncErrors),
+      mode: this.mode,
+      syncErrorMs: med(this.syncErrors.map(Math.abs)),
+      syncErrorP95: p95(this.syncErrors.map(Math.abs)),
+      leadMs: med(this.leads),
+      inputLatencyMs: med(this.latencies),
       flashesSuppressed: this.limiter.suppressed,
     };
     this.intervals = [];
     this.works = [];
     this.syncErrors = [];
+    this.leads = [];
+    this.latencies = [];
     return stats;
   }
 

@@ -2,6 +2,7 @@
 // (render worker). Rebuilds its GPU resources if the context is lost and restored (RD-12).
 
 import { F, MEL_BANDS } from "../../lib/frames";
+import { CALIBRATE_FS } from "../modes/calibrate.glsl";
 import { TUNNEL_FS } from "../modes/tunnel.glsl";
 import type { AnyCanvas, Backend, ModeId, VisualState } from "../types";
 import { FULLSCREEN_VS, program, uniforms } from "./gl";
@@ -11,7 +12,7 @@ interface ModeProgram {
   u: Record<string, WebGLUniformLocation>;
 }
 
-const SOURCES: Partial<Record<ModeId, string>> = { tunnel: TUNNEL_FS };
+const SOURCES: Partial<Record<ModeId, string>> = { tunnel: TUNNEL_FS, calibrate: CALIBRATE_FS };
 
 export class WebGL2Backend implements Backend {
   readonly kind = "webgl2" as const;

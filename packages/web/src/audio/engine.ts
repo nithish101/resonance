@@ -19,6 +19,7 @@ import {
   micError,
   tabError,
 } from "./errors";
+import type { ClockSample } from "../lib/clock";
 import { FrameBus } from "../lib/frames";
 import type { DspInit, DspOutbound, DspStats, Transport } from "../lib/protocol";
 
@@ -382,6 +383,38 @@ export class AudioEngine {
     this.mediaNode?.disconnect();
     this.stopLive();
     this._source = null;
+  }
+
+  /**
+   * Samples the output clock (PRD 6.3). getOutputTimestamp() gives the context time of the
+   * sample the device is playing right now and when; where it's missing, fall back to
+   * currentTime minus the reported latencies.
+   */
+  sampleClock(out: ClockSample): void {
+    const ctx = this.ctx;
+    const kind = this._source;
+    out.mode = kind === "track" || kind === "file" ? 1 : kind ? 2 : 0;
+    out.sampleRate = ctx.sampleRate;
+    out.outputLatency = ctx.outputLatency ?? 0;
+    out.baseLatency = ctx.baseLatency ?? 0;
+    out.lookahead = this.delay.delayTime.value;
+    out.currentTime = ctx.currentTime;
+    const ts = typeof ctx.getOutputTimestamp === "function" ? ctx.getOutputTimestamp() : null;
+    if (
+      ts &&
+      ts.contextTime !== undefined &&
+      ts.performanceTime !== undefined &&
+      ts.performanceTime > 0
+    ) {
+      out.contextTime = ts.contextTime;
+      out.perfAbs = performance.timeOrigin + ts.performanceTime;
+    } else {
+      out.contextTime = ctx.currentTime - out.baseLatency - out.outputLatency;
+      out.perfAbs = performance.timeOrigin + performance.now();
+    }
+    const track = this.stream?.getAudioTracks()[0];
+    const latency = (track?.getSettings() as { latency?: number } | undefined)?.latency;
+    out.inputLatency = typeof latency === "number" ? latency : 0;
   }
 
   /** Lists audio inputs. Labels are only populated after mic permission is granted. */

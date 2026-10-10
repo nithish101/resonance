@@ -3,6 +3,7 @@
 
 import type { Capabilities } from "../audio/capabilities";
 import type { FrameChannel } from "../audio/engine";
+import type { ClockSample } from "../lib/clock";
 import type { RenderStats } from "../render/core";
 import { RenderLoop, rafFor } from "../render/loop";
 import type { FrameSource, RenderInbound, RenderOutbound } from "../render/protocol";
@@ -32,6 +33,7 @@ export class RenderHost {
   private loop: RenderLoop | null = null;
   private resizeObs: ResizeObserver;
   private pendingFrames: FrameSource | null = null;
+  private pendingClock: SharedArrayBuffer | null = null;
   private onVisibility = () => this.post({ type: "visible", visible: !document.hidden });
 
   constructor(
@@ -106,6 +108,7 @@ export class RenderHost {
     };
     w.postMessage(init, [off]);
     if (this.pendingFrames) this.attach(this.pendingFrames);
+    if (this.pendingClock) this.attachClock(this.pendingClock);
   }
 
   private fallBackToMain(why: string): void {
@@ -114,6 +117,7 @@ export class RenderHost {
     // The transferred canvas can't be reclaimed; startMain creates a fresh one.
     this.startMain(`The render worker failed (${why}), so rendering moved to the main thread.`);
     if (this.pendingFrames) this.attach(this.pendingFrames);
+    if (this.pendingClock) this.attachClock(this.pendingClock);
   }
 
   private startMain(reason: string): void {
@@ -153,6 +157,8 @@ export class RenderHost {
       else if (m.type === "settings") this.loop.setSettings(m.settings);
       else if (m.type === "visible") this.loop.setVisible(m.visible);
       else if (m.type === "attach") this.loop.attach(m.frames);
+      else if (m.type === "clock") this.loop.attachClock(m.buffer);
+      else if (m.type === "clockSample") this.loop.pushClock(m.sample);
     }
   }
 
@@ -163,6 +169,17 @@ export class RenderHost {
       { type: "attach", frames },
       frames.kind === "postMessage" && this.worker ? [frames.port] : [],
     );
+  }
+
+  /** Shared-memory output clock (sent once). */
+  attachClock(buffer: SharedArrayBuffer): void {
+    this.pendingClock = buffer;
+    this.post({ type: "clock", buffer });
+  }
+
+  /** postMessage output clock (sent every frame). */
+  pushClock(sample: ClockSample): void {
+    this.post({ type: "clockSample", sample });
   }
 
   setSettings(settings: RenderSettings): void {

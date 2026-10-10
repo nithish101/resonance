@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AudioEngine } from "../audio/engine";
-import { TRACKS } from "../audio/tracks";
-import { playFile, playTrack, startMic, startTab } from "../app/controller";
+import { CALIBRATION_TRACK, TRACKS } from "../audio/tracks";
+import { flags, playFile, playTrack, startMic, startTab } from "../app/controller";
 import { useApp } from "../app/store";
 import { FileIcon, MicIcon, TabIcon } from "./Icons";
 
@@ -38,7 +38,7 @@ export function SourcePicker() {
           Bundled tracks
         </p>
         <ul className="tracks">
-          {TRACKS.map((t) => (
+          {(flags.calibrate ? [CALIBRATION_TRACK] : TRACKS).map((t) => (
             <li key={t.id}>
               <button
                 className="track"

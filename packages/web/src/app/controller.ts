@@ -2,7 +2,8 @@
 
 import { AudioEngine } from "../audio/engine";
 import { AppErrorException, appError, toAppError, type AppError } from "../audio/errors";
-import { TRACKS } from "../audio/tracks";
+import { CALIBRATION_TRACK, TRACKS } from "../audio/tracks";
+import { ClockBuffer, createClockSample } from "../lib/clock";
 import { frameSourceFor, type RenderHost } from "./renderHost";
 import { setApp, setPlayback, useApp, type Settings, type SourceInfo } from "./store";
 
@@ -14,6 +15,7 @@ export const flags = (() => {
     forceWasmFailure: q.get("wasm") === "fail",
     forceScalar: q.get("wasm") === "scalar",
     renderer: q.get("renderer"),
+    calibrate: q.get("calibrate") === "1",
   };
 })();
 
@@ -27,8 +29,36 @@ let renderHost: RenderHost | null = null;
 /** Called by the Stage once its renderer exists; connects frames if audio is already running. */
 export function registerRenderer(host: RenderHost | null): void {
   renderHost = host;
-  if (host && engine)
-    host.attach(frameSourceFor(engine.frames, engine.info.sampleRate, engine.info.hop));
+  if (host && engine) connectRenderer(host, engine);
+}
+
+let clockBuffer: ClockBuffer | null = null;
+const clockSample = createClockSample();
+let clockLoop = 0;
+
+function connectRenderer(host: RenderHost, e: AudioEngine): void {
+  host.attach(frameSourceFor(e.frames, e.info.sampleRate, e.info.hop));
+  // SharedArrayBuffer isn't even defined on pages that aren't cross-origin isolated.
+  if (e.info.transport === "shared-memory" && clockBuffer) {
+    host.attachClock(clockBuffer.buffer as SharedArrayBuffer);
+  }
+}
+
+/**
+ * Publishes the audio output clock to the renderer every animation frame (PRD 6.3). Over shared
+ * memory it's a seqlocked write; otherwise one small message per frame.
+ */
+function startClock(e: AudioEngine): void {
+  const shared = e.info.transport === "shared-memory";
+  clockBuffer = ClockBuffer.create(shared);
+  const tick = () => {
+    e.sampleClock(clockSample);
+    if (shared) clockBuffer!.write(clockSample);
+    else renderHost?.pushClock({ ...clockSample });
+    clockLoop = requestAnimationFrame(tick);
+  };
+  cancelAnimationFrame(clockLoop);
+  clockLoop = requestAnimationFrame(tick);
 }
 
 export function updateSettings(patch: Partial<Settings>): void {
@@ -62,7 +92,8 @@ export function ensureEngine(): Promise<AudioEngine> {
     .then((e) => {
       engine = e;
       wire(e);
-      renderHost?.attach(frameSourceFor(e.frames, e.info.sampleRate, e.info.hop));
+      startClock(e);
+      if (renderHost) connectRenderer(renderHost, e);
       setApp({ engine: "ready", engineInfo: e.info });
       return e;
     })
@@ -120,7 +151,7 @@ async function open(source: SourceInfo, run: (e: AudioEngine) => Promise<void>):
 }
 
 export function playTrack(id: string): Promise<void> {
-  const t = TRACKS.find((x) => x.id === id);
+  const t = [...TRACKS, CALIBRATION_TRACK].find((x) => x.id === id);
   if (!t) return Promise.resolve();
   return open({ kind: "track", label: `${t.title} — ${t.artist}`, trackId: t.id }, (e) =>
     e.playUrl(t.url),

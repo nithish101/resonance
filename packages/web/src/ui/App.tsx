@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { detectCapabilities } from "../audio/capabilities";
-import { playFile } from "../app/controller";
+import { flags, playFile } from "../app/controller";
 import { loadWarningAccepted } from "../app/persist";
 import { DEFAULT_APP_SETTINGS, setApp, setUi, useApp } from "../app/store";
 import { CapabilityNotice, CapabilityPill } from "./CapabilityBanner";
@@ -18,7 +18,11 @@ function init() {
   const caps = detectCapabilities();
   setApp({
     caps,
-    settings: { ...DEFAULT_APP_SETTINGS, reducedMotion: caps.reducedMotion },
+    settings: {
+      ...DEFAULT_APP_SETTINGS,
+      reducedMotion: caps.reducedMotion,
+      ...(flags.calibrate ? { mode: "calibrate" as const, reducedMotion: false } : {}),
+    },
   });
   setUi({ warningAccepted: loadWarningAccepted() });
 }

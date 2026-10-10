@@ -47,7 +47,7 @@ Source of truth: [`PRD.md`](../PRD.md). Requirement IDs and priorities (P0/P1/P2
       adaptive quality, visibility pause.
 - [x] **M6 UI and safety.** UI-1, UI-2, UI-3, UI-5, AX-1 to AX-4, ER-4, ER-5. Controls, debug
       overlay, capability banner, photosensitivity gate, WCAG flash limiter, reduced motion, axe.
-- [ ] **M7 Timing.** PRD §6.3. Output-clock targeting, A/V sync error and input latency in the
+- [x] **M7 Timing.** PRD §6.3. Output-clock targeting, A/V sync error and input latency in the
       overlay, `docs/latency.md`.
 - [ ] **M8 Capture.** RD-11. Deterministic capture mode, `pnpm capture` (screenshots and hero
       GIF), visual regression under SwiftShader.
@@ -161,3 +161,15 @@ Real problems hit during the build and how they were solved. Source for the READ
 - **Stale preview server.** Playwright's `reuseExistingServer` silently reused a `vite preview`
   left running from a manual screenshot session, so a whole batch of new UI tests "failed"
   against an old build. The config now always starts its own server.
+- **A/V sync error is zero by construction.** With a 100 ms lookahead the renderer can always
+  show exactly the frame for the output timestamp, so the PRD's software metric reads 0 ms. The
+  real error is in the browser's output-latency estimate and the display, which software can't
+  observe. Documented in docs/latency.md, with a calibration mode (`?calibrate=1`) for the camera
+  check instead of claiming a number we can't measure.
+- **Test audio through the speakers.** Headless runs of the full Chromium build (used for the
+  real tab-capture test) can reach the real audio device. All Playwright launches now pass
+  `--mute-audio`; timing APIs keep working.
+- **`SharedArrayBuffer` is undefined when not isolated.** An `instanceof SharedArrayBuffer` check
+  in the clock wiring threw a ReferenceError on non-isolated pages and failed the whole engine
+  start in the postMessage fallback. The e2e suite's `?coi=0` runs caught it; the check now keys
+  off the negotiated transport instead.

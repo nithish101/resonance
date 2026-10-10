@@ -37,6 +37,12 @@ self.onmessage = (e: MessageEvent<RenderInbound>) => {
       case "visible":
         loop?.setVisible(m.visible);
         break;
+      case "clock":
+        loop?.attachClock(m.buffer);
+        break;
+      case "clockSample":
+        loop?.pushClock(m.sample);
+        break;
     }
   } catch (err) {
     post({ type: "error", message: err instanceof Error ? err.message : String(err) });

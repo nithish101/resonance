@@ -1,5 +1,6 @@
 // Messages between the main thread and the render worker.
 
+import type { ClockSample } from "../lib/clock";
 import type { RenderStats } from "./core";
 import type { BackendKind, RenderSettings } from "./types";
 
@@ -20,7 +21,11 @@ export type RenderInbound =
   | { type: "attach"; frames: FrameSource }
   | { type: "resize"; cssW: number; cssH: number; dpr: number }
   | { type: "settings"; settings: RenderSettings }
-  | { type: "visible"; visible: boolean };
+  | { type: "visible"; visible: boolean }
+  /** Shared-memory clock: sent once. */
+  | { type: "clock"; buffer: SharedArrayBuffer }
+  /** postMessage clock: sent every main-thread animation frame. */
+  | { type: "clockSample"; sample: ClockSample };
 
 export type RenderOutbound =
   | { type: "ready"; backend: BackendKind }

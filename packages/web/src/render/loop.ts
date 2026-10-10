@@ -1,5 +1,6 @@
 // The interactive render loop, shared by the worker and the main-thread fallback.
 
+import { ClockBuffer, createClockSample, targetFrame, type ClockSample } from "../lib/clock";
 import { FrameBus } from "../lib/frames";
 import type { FrameMessage } from "../lib/protocol";
 import { RenderCore, type RenderStats } from "./core";
@@ -17,6 +18,8 @@ export class RenderLoop {
   private last = 0;
   private statsTimer: ReturnType<typeof setInterval>;
   private settings: RenderSettings;
+  private clock: ClockBuffer = ClockBuffer.create(false);
+  private readonly clockSample: ClockSample = createClockSample();
 
   constructor(
     private readonly backend: Backend,
@@ -50,6 +53,16 @@ export class RenderLoop {
 
   private size: [number, number, number] = [1, 1, 1];
 
+  /** Shared-memory output clock from the main thread. */
+  attachClock(buffer: SharedArrayBuffer): void {
+    this.clock = new ClockBuffer(buffer);
+  }
+
+  /** postMessage output clock: one sample per main-thread frame. */
+  pushClock(sample: ClockSample): void {
+    this.clock.write(sample);
+  }
+
   resize(cssW: number, cssH: number, dpr: number): void {
     this.size = [cssW, cssH, dpr];
     this.core.resize(cssW, cssH, dpr);
@@ -75,7 +88,10 @@ export class RenderLoop {
       if (!this.running) return;
       const interval = this.last ? t - this.last : 0;
       this.last = t;
-      this.core.frame(t, interval, null);
+      const now = performance.timeOrigin + performance.now();
+      const c = this.clockSample;
+      if (!this.clock.read(c)) c.mode = 0;
+      this.core.frame(now, interval, targetFrame(c, now), c);
       this.handle = this.raf(tick);
     };
     this.handle = this.raf(tick);

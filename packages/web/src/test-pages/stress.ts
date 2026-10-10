@@ -30,8 +30,9 @@ async function ringStress(
   samples: number,
   samplesPerSec: number,
   consumerDelayMs: number,
+  capacity = 8192,
 ): Promise<Result> {
-  const ring = createRing(8192, 1024);
+  const ring = createRing(capacity, 1024);
   const producer = run(
     new Worker(new URL("./ring-producer.worker.ts", import.meta.url), { type: "module" }),
     { ring, samples, samplesPerSec },
@@ -74,8 +75,9 @@ async function busStress(frames: number, readers: number): Promise<Result> {
 
 async function main() {
   const results = {
-    // 10x real-time at 48 kHz with an unthrottled consumer: nothing may be dropped.
-    ringPaced: await ringStress(1_000_000, 480_000, 0),
+    // 4x real time at 48 kHz, with the app's ring size (32768 samples, 0.68 s at 48 kHz):
+    // nothing may be dropped, even with the machine busy running other tests.
+    ringPaced: await ringStress(800_000, 192_000, 0, 32768),
     // Unthrottled producer: the consumer can't keep up, so drop-oldest must kick in cleanly.
     ringFlood: await ringStress(4_000_000, 0, 0),
     // Consumer stalls 2 ms per read while the producer floods.

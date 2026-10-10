@@ -158,6 +158,23 @@ export class RenderCore {
     this.works.push(work);
   }
 
+  /**
+   * Capture mode (RD-11): shows audio time `time` (seconds) with no wall clock involved. Call
+   * with monotonically increasing times at a fixed step; `draw` false advances the visual state
+   * without rendering (used to fast-forward to a start time).
+   */
+  renderAt(time: number, draw: boolean): void {
+    const sr = this.reader?.sampleRate || 48_000;
+    if (this.reader) this.reader.sample(time * sr, this.features);
+    const s = this.step(time);
+    if (draw) this.backend.draw(s);
+  }
+
+  /** Fixed render size for capture mode (no adaptive quality). */
+  setFixedSize(width: number, height: number): void {
+    this.backend.resize(width, height);
+  }
+
   /** Summarizes and clears the stats window. */
   takeStats(): RenderStats {
     const med = (a: number[]) => {

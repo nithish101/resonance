@@ -23,7 +23,7 @@
     "test:e2e": "pnpm --filter @resonance/web test:e2e",
     "bench": "node scripts/bench.mjs",
     "eval": "node scripts/eval.mjs",
-    "capture": "node scripts/capture.mjs",
+    "capture": "pnpm prepare-assets && node scripts/capture.mjs",
     "size": "node scripts/size-budget.mjs",
     "prepare": "husky"
   },
@@ -32,9 +32,11 @@
     "eslint": "^10.12.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.7",
+    "gifenc": "^1.0.3",
     "globals": "^17.13.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.6.0",
+    "pngjs": "^7.0.0",
     "prettier": "^3.9.10",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.71.1"

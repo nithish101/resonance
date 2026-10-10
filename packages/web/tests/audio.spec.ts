@@ -64,14 +64,43 @@ test.describe("audio pipeline", () => {
     );
   });
 
-  test("microphone input via a fake device (IN-3)", async ({ page }) => {
+  test("microphone input via Chrome's fake device runs the pipeline (IN-3)", async ({ page }) => {
+    // Chrome's fake capture device only beeps now and then, so this test checks the real
+    // getUserMedia path and that analysis runs; the next test checks audio content.
     await page.goto("/");
     await page.getByTestId("mic-button").click();
     await expect(page.getByTestId("now-playing")).toBeVisible();
+    expect((await state(page)).source?.kind).toBe("mic");
+    const hops = async () => (await state(page)).dsp?.hops ?? 0;
+    await expect.poll(hops).toBeGreaterThan(20);
+    const before = await hops();
+    await expect.poll(hops).toBeGreaterThan(before + 20);
+  });
+
+  test("microphone audio is analysed, with voice processing disabled (IN-3)", async ({ page }) => {
+    await page.addInitScript(() => {
+      const w = globalThis as unknown as { __constraints: unknown };
+      navigator.mediaDevices.getUserMedia = async (c) => {
+        w.__constraints = c;
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const dest = ctx.createMediaStreamDestination();
+        osc.connect(dest);
+        osc.start();
+        return dest.stream;
+      };
+    });
+    await page.goto("/");
+    await page.getByTestId("mic-button").click();
     await expect
       .poll(async () => (await state(page)).dsp?.rms ?? 0, { timeout: 20_000 })
-      .toBeGreaterThan(0.001);
-    expect((await state(page)).source?.kind).toBe("mic");
+      .toBeGreaterThan(0.01);
+    const c = (await page.evaluate(
+      () => (globalThis as unknown as { __constraints: unknown }).__constraints,
+    )) as { audio: Record<string, unknown> };
+    expect(c.audio.echoCancellation).toBe(false);
+    expect(c.audio.noiseSuppression).toBe(false);
+    expect(c.audio.autoGainControl).toBe(false);
   });
 });
 

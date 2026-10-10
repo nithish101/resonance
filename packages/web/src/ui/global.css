@@ -638,7 +638,7 @@ input[type="checkbox"][role="switch"]:checked::after {
   position: absolute;
   top: 60px;
   left: 16px;
-  width: 300px;
+  width: 340px;
   padding: 12px 14px;
   background: rgba(10, 11, 13, 0.82);
   border: 1px solid var(--rule);

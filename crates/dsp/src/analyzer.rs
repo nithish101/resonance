@@ -140,6 +140,7 @@ impl Analyzer {
             frame: [0.0; FRAME_FLOATS],
             hops: 0,
         };
+        a.frame[KEY] = -1.0; // unknown until analysed
         a.set_params(1.0, 0.5);
         a
     }
@@ -181,6 +182,7 @@ impl Analyzer {
     pub fn reset(&mut self) {
         self.history.fill(0.0);
         self.frame = [0.0; FRAME_FLOATS];
+        self.frame[KEY] = -1.0;
         for p in self.mel_peak.iter_mut().chain(self.band_peak.iter_mut()) {
             p.reset();
         }

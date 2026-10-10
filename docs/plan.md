@@ -49,7 +49,7 @@ Source of truth: [`PRD.md`](../PRD.md). Requirement IDs and priorities (P0/P1/P2
       overlay, capability banner, photosensitivity gate, WCAG flash limiter, reduced motion, axe.
 - [x] **M7 Timing.** PRD §6.3. Output-clock targeting, A/V sync error and input latency in the
       overlay, `docs/latency.md`.
-- [ ] **M8 Capture.** RD-11. Deterministic capture mode, `pnpm capture` (screenshots and hero
+- [x] **M8 Capture.** RD-11. Deterministic capture mode, `pnpm capture` (screenshots and hero
       GIF), visual regression under SwiftShader.
 - [ ] **M9 Infra.** PRD §12. CDK stack (private S3, CloudFront OAC, headers policy, wasm MIME,
       caching), CD workflow over GitHub OIDC, smoke test, bundle budget, Lighthouse CI.
@@ -173,3 +173,16 @@ Real problems hit during the build and how they were solved. Source for the READ
   in the clock wiring threw a ReferenceError on non-isolated pages and failed the whole engine
   start in the postMessage fallback. The e2e suite's `?coi=0` runs caught it; the check now keys
   off the negotiated transport instead.
+- **The AudioContext froze while the laptop's display was asleep.** With the owner away, macOS
+  stopped servicing the built-in output, so Chromium's audio clock (driven by device callbacks)
+  stalled after four render quanta: `currentTime` stuck at 10.7 ms, media time at 0, no DSP
+  hops. Every audio e2e test failed although nothing in the code had changed. Tests and capture
+  now launch Chromium with `--disable-audio-output`, which drives the clock from a timer:
+  silent, hardware-independent, and identical in CI.
+- **Flaky tests under parallel load.** Chrome's fake microphone beeps only occasionally, so
+  asserting on its audio level was flaky; the mic tests now check the real device path for
+  wiring and use a stubbed oscillator stream for content. The "no drops at realistic rates" ring
+  stress case used a much smaller ring than the app; it now uses the app's 32768-sample ring at
+  4x real time. Playwright runs 4 workers locally, since each one software-renders.
+- **Film grain made the hero GIF 7.4 MB.** Per-frame noise in every pixel defeats LZW. Capture
+  turns grain off for the GIF only and uses one palette per theme segment: 4.8 MB.

@@ -7,9 +7,14 @@ const port = dev ? 5173 : 4173;
 
 export default defineConfig({
   testDir: "tests",
+  // One golden per test regardless of OS: SwiftShader renders identically on macOS and Linux
+  // within the tolerance used by the visual tests.
+  snapshotPathTemplate: "{testDir}/__screenshots__/{testFileName}/{arg}{ext}",
   timeout: 60_000,
   expect: { timeout: 15_000 },
   fullyParallel: true,
+  // Each worker software-renders (SwiftShader); too many at once starves the audio threads.
+  workers: process.env.CI ? 2 : 4,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
   use: {
@@ -31,8 +36,10 @@ export default defineConfig({
             // Fake capture devices for the mic and tab-capture tests.
             "--use-fake-ui-for-media-stream",
             "--use-fake-device-for-media-stream",
-            // Don't play test audio through the machine's speakers. Timing still runs.
-            "--mute-audio",
+            // Fake audio output: no sound on the machine's speakers, and the AudioContext clock
+            // runs from a timer instead of the hardware, so tests don't stall when the output
+            // device is asleep (e.g. a laptop with its display off) and behave the same in CI.
+            "--disable-audio-output",
           ],
         },
       },
@@ -49,7 +56,7 @@ export default defineConfig({
           args: [
             "--auto-select-tab-capture-source-by-title=ToneSource",
             "--autoplay-policy=no-user-gesture-required",
-            "--mute-audio",
+            "--disable-audio-output",
           ],
         },
       },

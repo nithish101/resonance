@@ -51,7 +51,12 @@ export default defineConfig({
     rollupOptions: {
       // Test-only pages (concurrency stress harness) are built only for e2e runs.
       input: process.env.RESONANCE_TEST_PAGES
-        ? { main: "index.html", stress: "stress.html", capture: "capture.html" }
+        ? {
+            main: "index.html",
+            stress: "stress.html",
+            capture: "capture.html",
+            bench: "bench.html",
+          }
         : { main: "index.html" },
     },
   },

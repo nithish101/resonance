@@ -529,6 +529,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "resonance-eval"
+version = "0.1.0"
+dependencies = [
+ "resonance-dsp",
+ "resonance-fixtures",
+]
+
+[[package]]
 name = "resonance-fixtures"
 version = "0.1.0"
 

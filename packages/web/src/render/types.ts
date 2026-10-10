@@ -50,6 +50,8 @@ export interface VisualState {
   flash: number;
   /** Smoothed low-frequency energy. */
   bass: number;
+  /** Seconds since the last onset (drives the nebula shockwave); large when none yet. */
+  onsetAge: number;
   palette: Palette;
   settings: RenderSettings;
   /** Device-pixel scale after adaptive quality. */

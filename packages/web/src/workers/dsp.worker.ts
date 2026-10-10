@@ -13,6 +13,8 @@ declare const self: DedicatedWorkerGlobalScope;
 const post = (m: DspOutbound) => self.postMessage(m);
 
 let analyzer: Analyzer | null = null;
+let initMsg: DspInit | null = null;
+let params = { sensitivity: 1, smoothing: 0.5 };
 let consumer: RingConsumer | null = null;
 let bus: FrameBus | null = null;
 let framePort: MessagePort | null = null;
@@ -154,6 +156,7 @@ async function init(m: DspInit): Promise<void> {
       forceScalar: m.forceScalar,
     });
     analyzer = loaded.analyzer;
+    initMsg = m;
     if (m.ring) consumer = new RingConsumer(m.ring);
     if (m.frameBuffer) {
       bus = new FrameBus(m.frameBuffer);
@@ -178,6 +181,26 @@ async function init(m: DspInit): Promise<void> {
   }
 }
 
+/** Rebuilds the analyzer with a new STFT size (allocation here is fine: it's not per hop). */
+async function reconfigure(frameSize: number, hop: number): Promise<void> {
+  const a = analyzer;
+  if (!a || !initMsg || (a.frameSize === frameSize && a.hop === hop)) return;
+  analyzer = null; // stop feeding while the new one loads
+  const loaded = await createAnalyzer({
+    sampleRate: initMsg.sampleRate,
+    frameSize,
+    hop,
+    forceFailure: false,
+    forceScalar: initMsg.forceScalar,
+  });
+  loaded.analyzer.setParams(params.sensitivity, params.smoothing);
+  fill = 0;
+  dspTimes.clear();
+  bus?.setFormat(initMsg.sampleRate, hop);
+  bus?.reset();
+  analyzer = loaded.analyzer;
+}
+
 self.onmessage = (e: MessageEvent<DspInbound>) => {
   const m = e.data;
   switch (m.type) {
@@ -185,7 +208,11 @@ self.onmessage = (e: MessageEvent<DspInbound>) => {
       void init(m);
       break;
     case "params":
+      params = { sensitivity: m.sensitivity, smoothing: m.smoothing };
       analyzer?.setParams(m.sensitivity, m.smoothing);
+      break;
+    case "configure":
+      void reconfigure(m.frameSize, m.hop);
       break;
     case "reset":
       analyzer?.reset();

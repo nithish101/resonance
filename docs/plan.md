@@ -54,7 +54,7 @@ Source of truth: [`PRD.md`](../PRD.md). Requirement IDs and priorities (P0/P1/P2
 - [x] **M9 Infra.** (deploy-ready; not deployed: no AWS credentials by design. Steps in docs/deploy.md.) PRD §12. CDK stack (private S3, CloudFront OAC, headers policy, wasm MIME,
       caching), CD workflow over GitHub OIDC, smoke test, bundle budget, Lighthouse CI.
       Deployment steps written down for the owner.
-- [ ] **M10 ★ Docs and MVP.** PRD §13. README, architecture, feature-frame, dsp-notes,
+- [x] **M10 ★ Docs and MVP.** (complete except the live deploy, which needs the owner's AWS account) PRD §13. README, architecture, feature-frame, dsp-notes,
       benchmarks (`pnpm bench`), evaluation (`pnpm eval`), ADRs.
 - [ ] **M11 WebGPU.** RD-2, RD-5, RD-12. WebGPU backend, Particle Nebula, device and context loss.
 - [ ] **M12 Musical analysis.** DSP-7 to DSP-9, the IN-5 timeline, PRD §9.2. Beat tracker,
@@ -193,3 +193,12 @@ Real problems hit during the build and how they were solved. Source for the READ
   which `style-src 'self'` blocks.
 - **Lighthouse dropped Time to Interactive.** Lighthouse 10+ no longer reports TTI, so the PRD's
   "TTI < 2 s" budget is enforced through LCP (< 2 s) and Total Blocking Time (< 200 ms).
+- **Live input latency missed its target.** The first `pnpm bench` measured 53.6 ms against the
+  50 ms goal; most of it was the 2048-sample window's half-width. Live sources now analyse with
+  a 1024/256 STFT (35.3 ms); files keep 2048/512 because the lookahead hides their latency.
+- **The memory API isn't in the headless shell.** `performance.measureUserAgentSpecificMemory`
+  throws in Playwright's headless shell, so the first benchmark couldn't report memory. The
+  benchmark now uses full Chromium in new-headless mode, which supports it (and the real GPU).
+- **Benchmark variance.** Two full `pnpm bench` runs on the same machine gave a WASM per-hop mean
+  of 7.9 µs and 15.1 µs; the second ran while the machine was busy with other work. The README
+  quotes the committed run, which is the slower one.

@@ -243,6 +243,108 @@ pub fn groove(sample_rate: u32, bpm: f32, seconds: f32, seed: u64) -> Fixture {
     }
 }
 
+/// Options for [`groove_humanized`].
+#[derive(Debug, Clone, Copy)]
+pub struct Humanize {
+    /// Standard deviation of per-hit timing jitter, seconds.
+    pub jitter: f64,
+    /// Off-beat hats are delayed by this fraction of a beat (0 = straight, 0.1 = light swing).
+    pub swing: f64,
+    /// Per-hit gain variation, as a fraction (0.3 = +-30%).
+    pub velocity: f32,
+    /// Broadband noise floor, relative to full scale (e.g. 0.01 = -40 dBFS).
+    pub noise: f32,
+}
+
+/// A less tidy groove for evaluation: like [`groove`] but with timing jitter, swing, velocity
+/// variation, an extra syncopated kick in every other bar, and a noise floor. Beats are the
+/// nominal grid (where a listener taps); onsets are the actual, jittered hit times.
+pub fn groove_humanized(
+    sample_rate: u32,
+    bpm: f32,
+    seconds: f32,
+    seed: u64,
+    h: Humanize,
+) -> Fixture {
+    let sr = sample_rate as f32;
+    let mut rng = Rng::new(seed);
+    // Sum of uniforms: a cheap, deterministic, approximately normal variate (unit variance).
+    let gauss = |rng: &mut Rng| -> f64 { (0..12).map(|_| rng.bipolar() as f64 * 0.5).sum() };
+    let frames = (seconds * sr) as usize;
+    let mut mono = vec![0.0f32; frames];
+    let beat = 60.0 / bpm as f64;
+    let lead_in = 0.5f64;
+    let chords: [&[u8]; 4] = [
+        &[45, 57, 60, 64],
+        &[41, 57, 60, 65],
+        &[48, 55, 60, 64],
+        &[43, 55, 59, 62],
+    ];
+    let mut beats = Vec::new();
+    let mut onsets = Vec::new();
+    let mut i = 0usize;
+    loop {
+        let grid = lead_in + i as f64 * beat;
+        if grid > seconds as f64 - 0.5 {
+            break;
+        }
+        beats.push(grid);
+        let t = (grid + h.jitter * gauss(&mut rng)).max(0.0);
+        let g = 1.0 + h.velocity * rng.bipolar();
+        add(
+            &mut mono,
+            (t * sr as f64).round() as usize,
+            kick(sr).into_iter().map(|s| 0.8 * g * s),
+        );
+        onsets.push(t);
+        if i % 4 == 0 {
+            let chord = chords[(i / 4) % chords.len()];
+            let p = pad(sr, chord, (4.0 * beat) as f32);
+            add(
+                &mut mono,
+                (t * sr as f64).round() as usize,
+                p.into_iter().map(|s| 0.3 * s),
+            );
+        }
+        // Syncopated extra kick on the "and" of beat 3, every other bar.
+        if i % 8 == 2 {
+            let t2 = grid + beat * 0.5 + h.jitter * gauss(&mut rng);
+            add(
+                &mut mono,
+                (t2 * sr as f64).round() as usize,
+                kick(sr).into_iter().map(|s| 0.55 * s),
+            );
+            onsets.push(t2);
+        }
+        let off = grid + beat * (0.5 + h.swing) + h.jitter * gauss(&mut rng);
+        if off < seconds as f64 - 0.1 {
+            let g = 1.0 + h.velocity * rng.bipolar();
+            add(
+                &mut mono,
+                (off * sr as f64).round() as usize,
+                hat(sr, &mut rng).into_iter().map(|s| 0.6 * g * s),
+            );
+            onsets.push(off);
+        }
+        i += 1;
+    }
+    for s in mono.iter_mut() {
+        *s += h.noise * rng.bipolar();
+    }
+    normalize(&mut mono, 0.85);
+    onsets.sort_by(f64::total_cmp);
+    Fixture {
+        name: format!("humanized-{bpm}"),
+        sample_rate,
+        channels: 1,
+        samples: mono,
+        bpm: Some(bpm),
+        beats,
+        onsets,
+        key: Some("A minor".into()),
+    }
+}
+
 /// A pure sine, used to check that a known frequency arrives where expected end to end.
 pub fn sine(sample_rate: u32, hz: f32, seconds: f32) -> Fixture {
     let sr = sample_rate as f32;

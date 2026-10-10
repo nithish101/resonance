@@ -31,6 +31,8 @@ export interface RenderStats {
   /** Live mode: estimated capture-to-photon latency, ms (median). */
   inputLatencyMs: number;
   flashesSuppressed: number;
+  /** Raw frame intervals (ms) in this window, for benchmarks that need exact percentiles. */
+  intervals: number[];
 }
 
 export class RenderCore {
@@ -64,6 +66,7 @@ export class RenderCore {
       pulse: 0,
       flash: 0,
       bass: 0,
+      onsetAge: 99,
       palette: paletteById(settings.theme),
       settings,
       scale: 1,
@@ -112,6 +115,7 @@ export class RenderCore {
     s.bass += (bassNow - s.bass) * (1 - Math.exp(-dt / 0.06));
     s.travel += dt * (0.12 + 0.55 * d[F.loudness]! + 0.45 * s.bass) * (0.4 + 0.6 * intensity);
     s.pulse = f.onset ? 1 : s.pulse * Math.exp(-dt / 0.16);
+    s.onsetAge = f.onset ? 0 : s.onsetAge + dt;
     if (s.settings.mode === "calibrate") {
       // Camera check: a plain on/off square wave, exempt from intensity scaling. Clicks are 2 per
       // second, inside the 3-per-second flash limit, so the limiter never alters it.
@@ -200,6 +204,7 @@ export class RenderCore {
       leadMs: med(this.leads),
       inputLatencyMs: med(this.latencies),
       flashesSuppressed: this.limiter.suppressed,
+      intervals: this.intervals.filter((x) => x > 0),
     };
     this.intervals = [];
     this.works = [];

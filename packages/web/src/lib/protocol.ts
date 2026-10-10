@@ -27,7 +27,17 @@ export interface DspParams {
   smoothing: number;
 }
 
-export type DspInbound = DspInit | DspParams | { type: "reset" };
+/**
+ * Switches STFT size. Live sources use a shorter window (lower latency); files keep the longer
+ * one (better low-frequency resolution, and the lookahead hides its latency).
+ */
+export interface DspConfigure {
+  type: "configure";
+  frameSize: number;
+  hop: number;
+}
+
+export type DspInbound = DspInit | DspParams | DspConfigure | { type: "reset" };
 
 export interface DspStats {
   type: "stats";

@@ -248,6 +248,7 @@ export class AudioEngine {
 
   private async loadMedia(url: string, kind: "track" | "file"): Promise<void> {
     this.stopLive();
+    this.configureAnalysis(false);
     this.resetAnalysis();
     if (this.objectUrl) {
       URL.revokeObjectURL(this.objectUrl);
@@ -349,6 +350,7 @@ export class AudioEngine {
     this.media.pause();
     this.mediaNode?.disconnect();
     this.stopLive();
+    this.configureAnalysis(true);
     this.resetAnalysis();
     this.stream = stream;
     this.streamNode = this.ctx.createMediaStreamSource(stream);
@@ -375,6 +377,17 @@ export class AudioEngine {
 
   private resetAnalysis(): void {
     this.dsp.postMessage({ type: "reset" });
+  }
+
+  /**
+   * File sources analyse with the configured STFT (2048/512 by default): the lookahead hides its
+   * latency. Live sources halve it (1024/256), which cuts about 13 ms of capture-to-photon
+   * latency (a smaller half-window and a shorter hop) at the cost of coarser low-bass bins.
+   */
+  private configureAnalysis(live: boolean): void {
+    const frameSize = live ? this.info.frameSize / 2 : this.info.frameSize;
+    const hop = live ? this.info.hop / 2 : this.info.hop;
+    this.dsp.postMessage({ type: "configure", frameSize, hop });
   }
 
   /** Stops whatever is playing and returns to idle. */

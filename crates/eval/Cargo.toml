@@ -1,0 +1,15 @@
+[package]
+name = "resonance-eval"
+version = "0.1.0"
+description = "Accuracy evaluation (PRD 9.2): onset/beat F-measure and tempo Acc1/Acc2"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+resonance-dsp = { path = "../dsp" }
+resonance-fixtures = { path = "../fixtures" }

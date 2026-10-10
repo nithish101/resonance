@@ -85,8 +85,12 @@ input latency = track.getSettings().latency      // input device, where reported
 ```
 
 where the processing position is the output timestamp plus `outputLatency`. The middle term is
-dominated by the half-window: a 2048-sample frame's centre is 1024 samples (21 ms at 48 kHz)
-behind its newest sample, plus up to one hop (512 samples) of waiting for the next frame.
+dominated by the half-window: a frame's centre trails its newest sample by half the window, plus
+up to one hop of waiting for the next frame. With the file-mode STFT (2048/512) that was 53.6 ms
+end to end, missing the 50 ms target. Live sources therefore switch the analyzer to a 1024-sample
+window and 256-sample hop (`AudioEngine.configureAnalysis`), which brings the estimate to about
+35 ms. The cost is coarser bins (47 Hz at 48 kHz) in the lowest bass; files keep 2048/512 because
+the lookahead hides their latency.
 
 ## Measured numbers
 
@@ -94,12 +98,12 @@ All measured with the e2e harness on the build machine (Apple M5, headless Chrom
 muted, fake media devices). Headless Chromium uses a virtual audio output with no hardware, so
 these numbers validate the pipeline, not a speaker.
 
-| Metric                                    | Value                  | Notes                                                        |
-| ----------------------------------------- | ---------------------- | ------------------------------------------------------------ |
-| A/V sync error, file mode                 | 0.0 ms p50, 0.0 ms p95 | The renderer always found the target frame; see caveat above |
-| Analysis lead, file mode                  | ~97 ms                 | With the 100 ms lookahead; never went negative               |
-| Input latency estimate, live mode         | ~48 ms                 | Fake mic device, 48 kHz, 2048/512 STFT                       |
-| Output timestamp lag behind `currentTime` | ~30 ms                 | `outputLatency` reported 24 ms, `baseLatency` 5.3 ms         |
+| Metric                                    | Value                                                                | Notes                                                        |
+| ----------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------ |
+| A/V sync error, file mode                 | 0.0 ms p50, 0.0 ms p95                                               | The renderer always found the target frame; see caveat above |
+| Analysis lead, file mode                  | ~97 ms                                                               | With the 100 ms lookahead; never went negative               |
+| Input latency estimate, live mode         | ~48 ms with a 2048/512 STFT; ~35 ms with the live-mode 1024/256 STFT | Fake mic device, 48 kHz                                      |
+| Output timestamp lag behind `currentTime` | ~30 ms                                                               | `outputLatency` reported 24 ms, `baseLatency` 5.3 ms         |
 
 Headed measurements on real hardware are listed in [benchmarks.md](benchmarks.md) once they've
 been taken.
@@ -126,7 +130,7 @@ bias: about 10 ms early on synthetic clicks (`crates/dsp/tests/analyzer.rs`).
 
 ## Tuning knobs
 
-| Parameter   | Where                       | Default    | Effect                                                                                           |
-| ----------- | --------------------------- | ---------- | ------------------------------------------------------------------------------------------------ |
-| Lookahead   | `AudioEngine` (`lookahead`) | 100 ms     | Analysis safety margin in file mode; adds the same delay between pressing play and hearing sound |
-| Frame / hop | `EngineOptions`             | 2048 / 512 | Smaller frames cut live latency and frequency resolution together                                |
+| Parameter   | Where                       | Default                                     | Effect                                                                                           |
+| ----------- | --------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Lookahead   | `AudioEngine` (`lookahead`) | 100 ms                                      | Analysis safety margin in file mode; adds the same delay between pressing play and hearing sound |
+| Frame / hop | `EngineOptions`             | 2048 / 512 for files, halved for live input | Smaller frames cut latency and frequency resolution together                                     |

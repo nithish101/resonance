@@ -21,8 +21,8 @@
     "test:rust": "cargo test --workspace",
     "test:unit": "pnpm -r test:unit",
     "test:e2e": "pnpm --filter @resonance/web test:e2e",
-    "bench": "node scripts/bench.mjs",
-    "eval": "node scripts/eval.mjs",
+    "bench": "pnpm prepare-assets && node scripts/bench.mjs",
+    "eval": "cargo run --quiet --release -p resonance-eval -- docs/evaluation.md",
     "capture": "pnpm prepare-assets && node scripts/capture.mjs",
     "size": "node scripts/size-budget.mjs",
     "prepare": "husky"

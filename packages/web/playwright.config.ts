@@ -19,6 +19,7 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
+      testIgnore: /tab-capture\.spec\.ts/,
       use: {
         ...devices["Desktop Chrome"],
         launchOptions: {
@@ -34,9 +35,26 @@ export default defineConfig({
         },
       },
     },
+    {
+      // Real tab capture needs full Chromium (the default headless shell rejects
+      // getDisplayMedia). The flag auto-picks the tab titled "ToneSource" in the share dialog.
+      name: "tab-capture",
+      testMatch: /tab-capture\.spec\.ts/,
+      use: {
+        ...devices["Desktop Chrome"],
+        channel: "chromium",
+        launchOptions: {
+          args: [
+            "--auto-select-tab-capture-source-by-title=ToneSource",
+            "--autoplay-policy=no-user-gesture-required",
+          ],
+        },
+      },
+    },
   ],
   webServer: {
     command: dev ? "pnpm exec vite" : "pnpm exec vite build && pnpm exec vite preview",
+    env: { RESONANCE_TEST_PAGES: "1" },
     port,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,

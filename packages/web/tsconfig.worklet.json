@@ -5,5 +5,6 @@
     "types": [],
     "tsBuildInfoFile": "node_modules/.tmp/worklet.tsbuildinfo"
   },
-  "include": ["src/audio/worklet"]
+  "include": ["src/audio/worklet", "src/audio/shared"],
+  "exclude": ["src/**/*.test.ts"]
 }

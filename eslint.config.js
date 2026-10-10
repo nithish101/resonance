@@ -27,6 +27,10 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
+      // noUncheckedIndexedAccess makes every typed-array read `T | undefined`. In audio and
+      // render hot loops the index is bounds-correct by construction, and `!` is the
+      // zero-cost way to say so.
+      "@typescript-eslint/no-non-null-assertion": "off",
     },
   },
   {

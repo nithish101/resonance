@@ -29,10 +29,10 @@ Source of truth: [`PRD.md`](../PRD.md). Requirement IDs and priorities (P0/P1/P2
 
 ★ marks the MVP cut line.
 
-- [ ] **M1 Scaffold.** pnpm + Cargo workspaces, Vite/React/TS strict, WASM build wiring
+- [x] **M1 Scaffold.** pnpm + Cargo workspaces, Vite/React/TS strict, WASM build wiring
       (wasm-pack → `vite-plugin-wasm`), COOP/COEP dev and preview headers, ESLint/Prettier/Husky,
       CI skeleton, deterministic fixture generator.
-- [ ] **M2 Audio pipeline.** IN-1 to IN-8, ER-1, ER-2, ER-3. Covers file playback, 3 real
+- [x] **M2 Audio pipeline.** IN-1 to IN-8, ER-1, ER-2, ER-3. Covers file playback, 3 real
       bundled songs, mic with an input-device picker (loopback devices), **tab/system capture via
       `getDisplayMedia`** (PRD 5.1.1), live-source health, transport, the AudioWorklet tap, the
       SPSC ring buffer (drop-oldest, overrun counter), and the postMessage fallback transport.
@@ -127,4 +127,23 @@ each with an image (Resonance: the hero GIF from `pnpm capture`).
 
 Real problems hit during the build and how they were solved. Source for the README trade-offs section.
 
-- _(empty)_
+- **Vite didn't bundle workers created through a helper.** `new Worker(url)` with a URL built
+  elsewhere shipped the raw `.ts` file as an asset, and the stress page silently hung. Vite only
+  recognises `new Worker(new URL("./x.ts", import.meta.url))` as a single expression. Fixed by
+  constructing workers inline at every call site.
+- **The postMessage fallback died after one batch.** The worklet transfers each filled batch's
+  buffer to the DSP worker, then sized the next batch from the old array, which reads as length
+  0 once its buffer is transferred. The next `set()` threw and the processor stopped. Found by
+  the `?coi=0` e2e test; fixed by keeping the batch size separately.
+- **Short transients vanished from the stats.** Chrome's fake microphone emits a brief beep about
+  once a second; reporting the last hop's RMS every 250 ms usually missed it, so the mic test
+  was flaky. Stats now report the peak hop RMS over each window, which is also the right input
+  for the live-silence detector (IN-8).
+- **Headless tab capture is silent.** Full headless Chromium (`channel: "chromium"`) plus
+  `--auto-select-tab-capture-source-by-title` does run the real `getDisplayMedia` flow and
+  returns an audio track, but the track carries silence: a headless tab has no real audio output
+  to tap. The default headless shell rejects `getDisplayMedia` outright. The e2e test verifies
+  the wiring; audio content is covered with a mocked stream and checked manually.
+- **Note on property tests.** The PCM ring lives in TypeScript (it's shared by the worklet and
+  the worker), so its property tests use fast-check, the TypeScript equivalent of proptest.
+  proptest covers the Rust DSP.

@@ -25,3 +25,12 @@ declare function registerProcessor(
   name: string,
   ctor: new (options: AudioWorkletNodeOptions) => AudioWorkletProcessor,
 ): void;
+
+// Minimal MessagePort typing; the full DOM lib isn't available in the worklet scope.
+interface MessageEvent<T = unknown> {
+  readonly data: T;
+}
+interface MessagePort {
+  onmessage: ((e: MessageEvent) => void) | null;
+  postMessage(message: unknown, transfer?: unknown[]): void;
+}

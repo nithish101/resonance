@@ -3,7 +3,7 @@ target/
 dist/
 coverage/
 packages/web/src/wasm/
-packages/web/public/audio/
+packages/web/public/audio/fixtures/
 playwright-report/
 test-results/
 infra/cdk.out/

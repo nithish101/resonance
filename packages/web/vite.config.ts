@@ -36,7 +36,17 @@ export default defineConfig({
   server: { headers: isolationHeaders, port: 5173, strictPort: true },
   preview: { headers: isolationHeaders, port: 4173, strictPort: true },
   worker: { format: "es" },
-  build: { target: "es2022", sourcemap: true, assetsInlineLimit: 0 },
+  build: {
+    target: "es2022",
+    sourcemap: true,
+    assetsInlineLimit: 0,
+    rollupOptions: {
+      // Test-only pages (concurrency stress harness) are built only for e2e runs.
+      input: process.env.RESONANCE_TEST_PAGES
+        ? { main: "index.html", stress: "stress.html" }
+        : { main: "index.html" },
+    },
+  },
   test: {
     environment: "jsdom",
     include: ["src/**/*.test.{ts,tsx}"],

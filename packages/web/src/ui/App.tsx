@@ -1,48 +1,51 @@
 import { useEffect, useState } from "react";
-
-type Status =
-  | { kind: "loading" }
-  | { kind: "ready"; schemaVersion: number; simd: boolean }
-  | { kind: "error"; message: string };
+import { detectCapabilities } from "../audio/capabilities";
+import { playFile } from "../app/controller";
+import { setApp, useApp } from "../app/store";
+import { ErrorNotice, SilentHint } from "./Notices";
+import { SourcePicker } from "./SourcePicker";
+import { Transport } from "./Transport";
 
 export function App() {
-  const [status, setStatus] = useState<Status>({ kind: "loading" });
+  const source = useApp((s) => s.source);
+  const engine = useApp((s) => s.engine);
+  const info = useApp((s) => s.engineInfo);
+  const [dragging, setDragging] = useState(false);
 
   useEffect(() => {
-    const worker = new Worker(new URL("../workers/dsp.worker.ts", import.meta.url), {
-      type: "module",
-    });
-    worker.onmessage = (
-      e: MessageEvent<
-        { type: "ready"; schemaVersion: number; simd: boolean } | { type: "error"; message: string }
-      >,
-    ) => {
-      const m = e.data;
-      setStatus(
-        m.type === "ready"
-          ? { kind: "ready", schemaVersion: m.schemaVersion, simd: m.simd }
-          : { kind: "error", message: m.message },
-      );
-    };
-    worker.postMessage({ type: "init" });
-    return () => worker.terminate();
+    setApp({ caps: detectCapabilities() });
   }, []);
 
   return (
-    <main>
-      <h1>Resonance</h1>
-      <dl data-testid="status">
-        <dt>Cross-origin isolated</dt>
-        <dd data-testid="coi">{String(globalThis.crossOriginIsolated)}</dd>
-        <dt>DSP</dt>
-        <dd data-testid="dsp">
-          {status.kind === "ready"
-            ? `schema v${status.schemaVersion} (${status.simd ? "SIMD" : "scalar"})`
-            : status.kind === "error"
-              ? `error: ${status.message}`
-              : "loading"}
-        </dd>
-      </dl>
-    </main>
+    <div
+      className="dropzone"
+      data-active={dragging}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDragging(true);
+      }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragging(false);
+        const f = e.dataTransfer.files[0];
+        if (f) void playFile(f);
+      }}
+    >
+      <div className="chrome">
+        <header className="topbar">
+          <span className="wordmark">Resonance</span>
+          <span className="num" data-testid="engine-state" data-transport={info?.transport ?? ""}>
+            {engine === "ready" && info
+              ? `${info.sampleRate} Hz · ${info.transport} · ${info.simd ? "SIMD" : "scalar"}`
+              : ""}
+          </span>
+        </header>
+        {!source && <SourcePicker />}
+        <ErrorNotice />
+        <SilentHint />
+        <Transport />
+      </div>
+    </div>
   );
 }

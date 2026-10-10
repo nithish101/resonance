@@ -42,7 +42,7 @@ Source of truth: [`PRD.md`](../PRD.md). Requirement IDs and priorities (P0/P1/P2
       and RMS, the feature-frame writer, proptest, criterion, and integration into the DSP worker.
 - [x] **M4 Tempo.** DSP-6. Autocorrelation of the onset envelope with a log-Gaussian prior;
       click-track tests at 70, 90, 120, 140, and 174 BPM.
-- [ ] **M5 Rendering v1.** RD-1, RD-3, RD-4, RD-10, RD-13. Renderer interface, WebGL2 backend,
+- [x] **M5 Rendering v1.** RD-1, RD-3, RD-4, RD-10, RD-13. Renderer interface, WebGL2 backend,
       Spectral Tunnel, worker → main-thread fallback, seqlock frame reader with interpolation,
       adaptive quality, visibility pause.
 - [ ] **M6 UI and safety.** UI-1, UI-2, UI-3, UI-5, AX-1 to AX-4, ER-4, ER-5. Controls, debug

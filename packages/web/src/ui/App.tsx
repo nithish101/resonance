@@ -4,6 +4,7 @@ import { playFile } from "../app/controller";
 import { setApp, useApp } from "../app/store";
 import { ErrorNotice, SilentHint } from "./Notices";
 import { SourcePicker } from "./SourcePicker";
+import { Stage } from "./Stage";
 import { Transport } from "./Transport";
 
 export function App() {
@@ -32,6 +33,7 @@ export function App() {
         if (f) void playFile(f);
       }}
     >
+      <Stage />
       <div className="chrome">
         <header className="topbar">
           <span className="wordmark">Resonance</span>

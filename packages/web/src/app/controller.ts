@@ -3,7 +3,8 @@
 import { AudioEngine } from "../audio/engine";
 import { AppErrorException, appError, toAppError, type AppError } from "../audio/errors";
 import { TRACKS } from "../audio/tracks";
-import { setApp, setPlayback, useApp, type SourceInfo } from "./store";
+import { frameSourceFor, type RenderHost } from "./renderHost";
+import { setApp, setPlayback, useApp, type Settings, type SourceInfo } from "./store";
 
 /** Query-string switches used by tests and for forcing fallbacks by hand. */
 export const flags = (() => {
@@ -21,6 +22,21 @@ const SILENCE_HINT_SECS = 3;
 const SILENCE_RMS = 1e-4;
 
 let engine: AudioEngine | null = null;
+let renderHost: RenderHost | null = null;
+
+/** Called by the Stage once its renderer exists; connects frames if audio is already running. */
+export function registerRenderer(host: RenderHost | null): void {
+  renderHost = host;
+  if (host && engine)
+    host.attach(frameSourceFor(engine.frames, engine.info.sampleRate, engine.info.hop));
+}
+
+export function updateSettings(patch: Partial<Settings>): void {
+  const settings = { ...useApp.getState().settings, ...patch };
+  setApp({ settings });
+  renderHost?.setSettings(settings);
+  engine?.setDspParams(settings.sensitivity, settings.smoothing);
+}
 let starting: Promise<AudioEngine> | null = null;
 let silentSince = 0;
 
@@ -46,6 +62,7 @@ export function ensureEngine(): Promise<AudioEngine> {
     .then((e) => {
       engine = e;
       wire(e);
+      renderHost?.attach(frameSourceFor(e.frames, e.info.sampleRate, e.info.hop));
       setApp({ engine: "ready", engineInfo: e.info });
       return e;
     })
@@ -70,6 +87,8 @@ function wire(e: AudioEngine): void {
     m.addEventListener(ev, sync);
   }
   e.setVolume(useApp.getState().playback.volume);
+  const { sensitivity, smoothing } = useApp.getState().settings;
+  e.setDspParams(sensitivity, smoothing);
 
   e.onStats = (s) => {
     const { source } = useApp.getState();

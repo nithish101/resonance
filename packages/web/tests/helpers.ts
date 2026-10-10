@@ -51,3 +51,33 @@ export function wav(sampleRate: number, realSecs: number, claimedSecs = realSecs
   }
   return b;
 }
+
+/** Mean and standard deviation of luminance over a PNG screenshot (0..255). */
+export async function luminanceStats(png: Buffer): Promise<{ mean: number; std: number }> {
+  const { PNG } = await import("pngjs");
+  const img = PNG.sync.read(png);
+  let sum = 0;
+  let sq = 0;
+  const n = img.width * img.height;
+  for (let i = 0; i < img.data.length; i += 4) {
+    const y = 0.2126 * img.data[i]! + 0.7152 * img.data[i + 1]! + 0.0722 * img.data[i + 2]!;
+    sum += y;
+    sq += y * y;
+  }
+  const mean = sum / n;
+  return { mean, std: Math.sqrt(Math.max(0, sq / n - mean * mean)) };
+}
+
+export interface RenderSnapshot {
+  render: { fps: number; quality: number; scale: number } | null;
+  renderer: { backend: string | null; location: string | null; reason: string } | null;
+}
+
+export function renderState(page: Page): Promise<RenderSnapshot> {
+  return page.evaluate(() => {
+    const s = (
+      globalThis as unknown as { __resonance: { store: { getState(): RenderSnapshot } } }
+    ).__resonance.store.getState();
+    return JSON.parse(JSON.stringify({ render: s.render, renderer: s.renderer })) as RenderSnapshot;
+  });
+}

@@ -3,6 +3,9 @@ import type { AppError } from "../audio/errors";
 import type { Capabilities } from "../audio/capabilities";
 import type { EngineInfo, SourceKind } from "../audio/engine";
 import type { DspStats } from "../lib/protocol";
+import type { RenderStats } from "../render/core";
+import { DEFAULT_SETTINGS, type RenderSettings } from "../render/types";
+import type { RendererInfo } from "./renderHost";
 
 export type EngineState = "off" | "starting" | "ready" | "failed";
 
@@ -33,7 +36,22 @@ export interface AppState {
   silentHint: boolean;
   playback: Playback;
   dsp: DspStats | null;
+  render: RenderStats | null;
+  renderer: RendererInfo | null;
+  settings: Settings;
 }
+
+/** Everything user-adjustable (UI-2). Analysis params go to the DSP worker, the rest to the renderer. */
+export interface Settings extends RenderSettings {
+  sensitivity: number;
+  smoothing: number;
+}
+
+export const DEFAULT_APP_SETTINGS: Settings = {
+  ...DEFAULT_SETTINGS,
+  sensitivity: 1,
+  smoothing: 0.5,
+};
 
 export const initialState: AppState = {
   caps: null,
@@ -45,6 +63,9 @@ export const initialState: AppState = {
   silentHint: false,
   playback: { playing: false, time: 0, duration: 0, volume: 0.9, loop: false },
   dsp: null,
+  render: null,
+  renderer: null,
+  settings: DEFAULT_APP_SETTINGS,
 };
 
 export const useApp = create<AppState>()(() => initialState);

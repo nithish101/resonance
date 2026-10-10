@@ -37,6 +37,8 @@ export interface EngineOptions {
 
 export interface EngineInfo {
   sampleRate: number;
+  hop: number;
+  frameSize: number;
   transport: Transport;
   simd: boolean;
   baseLatency: number;
@@ -190,6 +192,8 @@ export class AudioEngine {
       gain,
       {
         sampleRate: ctx.sampleRate,
+        hop,
+        frameSize,
         transport: r.transport,
         simd: r.simd,
         baseLatency: ctx.baseLatency ?? 0,

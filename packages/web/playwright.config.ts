@@ -24,7 +24,7 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      testIgnore: /tab-capture\.spec\.ts/,
+      testIgnore: /(tab-capture|webgpu)\.spec\.ts/,
       use: {
         ...devices["Desktop Chrome"],
         launchOptions: {
@@ -39,6 +39,25 @@ export default defineConfig({
             // Fake audio output: no sound on the machine's speakers, and the AudioContext clock
             // runs from a timer instead of the hardware, so tests don't stall when the output
             // device is asleep (e.g. a laptop with its display off) and behave the same in CI.
+            "--disable-audio-output",
+          ],
+        },
+      },
+    },
+    {
+      // WebGPU path (RD-2): headless Chromium exposes a SwiftShader WebGPU adapter with this flag,
+      // so the WebGPU renderer runs in CI without a GPU.
+      name: "webgpu",
+      testMatch: /webgpu\.spec\.ts/,
+      use: {
+        ...devices["Desktop Chrome"],
+        launchOptions: {
+          // ANGLE on SwiftShader (Vulkan) lets the headless shell present WebGPU canvases;
+          // without it getCurrentTexture() returns an invalid texture.
+          args: [
+            "--enable-unsafe-webgpu",
+            "--use-angle=swiftshader",
+            "--enable-unsafe-swiftshader",
             "--disable-audio-output",
           ],
         },

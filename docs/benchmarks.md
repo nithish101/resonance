@@ -18,18 +18,18 @@ or Intel Iris Xe laptop), so the CPU-bound numbers are optimistic for that class
 
 ## PRD section 8 targets
 
-| Metric                                                    | Target                     | Measured                                                                                                                                                                    | Status       |
-| --------------------------------------------------------- | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
-| Frame rate, 1080p Spectral Tunnel (WebGL2, render worker) | 60 FPS sustained           | 60.0 FPS; frame interval p50 16.7 ms, p95 16.7 ms over 60 s (3599 frames); adaptive quality stayed at level 0                                                               | met          |
-| Particle Nebula, 500k particles (WebGPU)                  | 60 FPS                     | Not built yet (P1, milestone 11)                                                                                                                                            | not measured |
-| DSP time per hop (WASM, 2048/512)                         | p95 < 1 ms                 | 30 µs p95 (SIMD), 65 µs p95 (scalar); live DSP worker p95 115 µs                                                                                                            | met          |
-| A/V sync error, file mode                                 | within ±15 ms              | 0.0 ms p95, analysis lead 84 ms ([caveat](latency.md#what-this-does-and-doesnt-prove))                                                                                      | met          |
-| Input latency, live mode                                  | < 50 ms (estimate)         | 35.3 ms (fake capture device; live sources use a 1024/256 STFT)                                                                                                             | met          |
-| Main-thread long tasks during playback                    | 0                          | 0 in 60 s; 0 in the 600 s soak                                                                                                                                              | met          |
-| Ring-buffer overruns, 10-minute playback                  | 0                          | 0 samples in 600 s                                                                                                                                                          | met          |
-| JS + WASM, gzipped                                        | < 350 KB                   | 104.4 KB (JS 76.3 KB, CSS 2.5 KB, WASM 25.6 KB)                                                                                                                             | met          |
-| Time to interactive, broadband                            | < 2 s                      | Lighthouse 12.6.1 desktop: LCP 327 ms, TBT 0 ms, FCP 323 ms (TTI is no longer reported by Lighthouse)                                                                       | met          |
-| Memory, 10-minute playback                                | < 300 MB (10-minute track) | 4.6 MB (`performance.measureUserAgentSpecificMemory`: JS heaps, DOM, and ArrayBuffers across the page and its workers; excludes GPU memory and the browser's media buffers) | met          |
+| Metric                                                    | Target                     | Measured                                                                                                                                                                    | Status |
+| --------------------------------------------------------- | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| Frame rate, 1080p Spectral Tunnel (WebGL2, render worker) | 60 FPS sustained           | 60.0 FPS; frame interval p50 16.7 ms, p95 16.7 ms over 60 s (3600 frames); adaptive quality stayed at level 0                                                               | met    |
+| Particle Nebula, 500k particles (WebGPU compute)          | 60 FPS                     | 59.9 FPS; frame interval p50 16.7 ms, p95 16.7 ms over 30 s at 1080p; adaptive quality max level 0                                                                          | met    |
+| DSP time per hop (WASM, 2048/512)                         | p95 < 1 ms                 | 15 µs p95 (SIMD), 20 µs p95 (scalar); live DSP worker p95 115 µs                                                                                                            | met    |
+| A/V sync error, file mode                                 | within ±15 ms              | 0.0 ms p95, analysis lead 89 ms ([caveat](latency.md#what-this-does-and-doesnt-prove))                                                                                      | met    |
+| Input latency, live mode                                  | < 50 ms (estimate)         | 40.9 ms (fake capture device; live sources use a 1024/256 STFT)                                                                                                             | met    |
+| Main-thread long tasks during playback                    | 0                          | 0 in 60 s; 0 in the 600 s soak                                                                                                                                              | met    |
+| Ring-buffer overruns, 10-minute playback                  | 0                          | 0 samples in 600 s                                                                                                                                                          | met    |
+| JS + WASM, gzipped                                        | < 350 KB                   | 112.7 KB (JS 84.6 KB, CSS 2.5 KB, WASM 25.6 KB)                                                                                                                             | met    |
+| Time to interactive, broadband                            | < 2 s                      | Lighthouse 12.6.1 desktop: LCP 330 ms, TBT 0 ms, FCP 323 ms (TTI is no longer reported by Lighthouse)                                                                       | met    |
+| Memory, 10-minute playback                                | < 300 MB (10-minute track) | 4.8 MB (`performance.measureUserAgentSpecificMemory`: JS heaps, DOM, and ArrayBuffers across the page and its workers; excludes GPU memory and the browser's media buffers) | met    |
 
 Lighthouse scores: performance 100, accessibility 100, best practices 100 (representative of 3 runs).
 
@@ -42,8 +42,8 @@ from 100-hop batches.
 
 | Build   | Mean    | p50   | p95   | p99   | Max    | Budget used (one hop = 10.7 ms) |
 | ------- | ------- | ----- | ----- | ----- | ------ | ------------------------------- |
-| SIMD128 | 15.1 µs | 15 µs | 30 µs | 35 µs | 55 µs  | 0.14%                           |
-| Scalar  | 33.1 µs | 30 µs | 65 µs | 70 µs | 180 µs | 0.31%                           |
+| SIMD128 | 8.0 µs  | 5 µs  | 15 µs | 20 µs | 115 µs | 0.08%                           |
+| Scalar  | 10.2 µs | 10 µs | 20 µs | 25 µs | 35 µs  | 0.10%                           |
 
 ## DSP natively (criterion)
 
@@ -51,14 +51,14 @@ Median of criterion's estimates, native arm64 build with LTO.
 
 | Transform                    | Size       | Resonance | rustfft | Ratio |
 | ---------------------------- | ---------- | --------- | ------- | ----- |
-| Complex FFT                  | 512        | 1.36 µs   | 0.66 µs | 2.06x |
-| Complex FFT                  | 1024       | 2.91 µs   | 1.50 µs | 1.94x |
-| Complex FFT                  | 2048       | 6.31 µs   | 3.13 µs | 2.01x |
-| Complex FFT                  | 4096       | 13.25 µs  | 7.33 µs | 1.81x |
-| Real FFT (half-size complex) | 1024       | 1.59 µs   |         |       |
-| Real FFT (half-size complex) | 2048       | 3.43 µs   |         |       |
-| Real FFT (half-size complex) | 4096       | 7.33 µs   |         |       |
-| Full analysis hop            | 2048 / 512 | 7.38 µs   |         |       |
+| Complex FFT                  | 512        | 1.09 µs   | 0.53 µs | 2.04x |
+| Complex FFT                  | 1024       | 2.39 µs   | 1.23 µs | 1.94x |
+| Complex FFT                  | 2048       | 5.19 µs   | 2.57 µs | 2.02x |
+| Complex FFT                  | 4096       | 10.87 µs  | 6.14 µs | 1.77x |
+| Real FFT (half-size complex) | 1024       | 1.30 µs   |         |       |
+| Real FFT (half-size complex) | 2048       | 2.81 µs   |         |       |
+| Real FFT (half-size complex) | 4096       | 6.19 µs   |         |       |
+| Full analysis hop            | 2048 / 512 | 6.39 µs   |         |       |
 
 rustfft uses NEON SIMD and mixed-radix algorithms; Resonance's FFT is a readable iterative
 radix-2 transform (see [dsp-notes.md](dsp-notes.md)). It's about 2x slower and uses under 0.1%
@@ -67,5 +67,4 @@ of the per-hop time budget.
 ## Not measured here
 
 - **Real speaker/display latency.** Needs the camera check in [latency.md](latency.md).
-- **WebGPU.** Headless Chromium on this machine exposes no WebGPU adapter.
 - **Firefox and Safari.** The e2e suite and benchmarks run Chromium only.

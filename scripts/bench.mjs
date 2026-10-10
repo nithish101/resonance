@@ -116,6 +116,8 @@ const server = await buildAndServe(4180);
 const { chromium } = requireWeb("@playwright/test");
 const gpuArgs = [
   "--use-angle=metal",
+  // WebGPU on the real GPU, for the Particle Nebula run.
+  "--enable-unsafe-webgpu",
   "--ignore-gpu-blocklist",
   "--disable-audio-output",
   "--use-fake-ui-for-media-stream",
@@ -131,7 +133,7 @@ const browser = await chromium.launch({
 });
 const browserVersion = browser.version();
 
-async function appPage(viewport) {
+async function appPage(viewport, query = "") {
   const ctx = await browser.newContext({ viewport, deviceScaleFactor: 1 });
   await ctx.addInitScript(() => {
     localStorage.setItem("resonance.photosensitivity-ack.v1", "1");
@@ -147,7 +149,7 @@ async function appPage(viewport) {
     }
   });
   const page = await ctx.newPage();
-  await page.goto(server.url);
+  await page.goto(`${server.url}/${query}`);
   return { ctx, page };
 }
 
@@ -164,9 +166,9 @@ let wasm;
 }
 
 // 2. Live app: Spectral Tunnel at 1080p on the GPU while a track plays.
-async function playbackRun(seconds, label) {
+async function playbackRun(seconds, label, { query = "?renderer=webgl2", settings = null } = {}) {
   log(`${label}: ${seconds} s of playback at 1920x1080…`);
-  const { ctx, page } = await appPage({ width: 1920, height: 1080 });
+  const { ctx, page } = await appPage({ width: 1920, height: 1080 }, query);
   const renderer = await page.evaluate(() => {
     const gl = globalThis.document.createElement("canvas").getContext("webgl2");
     const ext = gl?.getExtension("WEBGL_debug_renderer_info");
@@ -174,6 +176,8 @@ async function playbackRun(seconds, label) {
   });
   await page.getByTestId("track-deep-house-soul").click();
   await page.waitForFunction(() => globalThis.__resonance.store.getState().dsp?.hops > 50);
+  if (settings)
+    await page.evaluate((s) => globalThis.__resonance.controller.updateSettings(s), settings);
   if (seconds > 280) await page.evaluate(() => globalThis.__resonance.controller.setLoop(true));
   await page.evaluate(() => {
     globalThis.__bench = { intervals: [], quality: [], dspP95: [], sync: [], lead: [] };
@@ -205,6 +209,7 @@ async function playbackRun(seconds, label) {
       longtasks: globalThis.__longtasks,
       overruns: s.dsp?.overrunSamples ?? null,
       renderer: s.renderer,
+      quality: s.render?.quality ?? null,
       transport: s.engineInfo?.transport,
       sampleRate: s.engineInfo?.sampleRate,
       jsHeap: performance.memory?.usedJSHeapSize ?? null,
@@ -221,6 +226,10 @@ const pct = (arr, p) => {
 };
 
 const run = await playbackRun(RUN_SECS, "render run");
+const nebula = await playbackRun(Math.min(RUN_SECS, 30), "nebula run", {
+  query: "",
+  settings: { mode: "nebula", particles: 500_000 },
+});
 const soak = SOAK_SECS ? await playbackRun(SOAK_SECS, "soak") : null;
 
 // 3. Live mode latency estimate with the fake microphone.
@@ -259,6 +268,17 @@ const results = {
   native,
   wasm,
   frame,
+  nebula: {
+    backend: nebula.renderer?.backend,
+    reason: nebula.renderer?.reason,
+    seconds: nebula.seconds,
+    fps: nebula.bench.intervals.length
+      ? (nebula.bench.intervals.length * 1000) / nebula.bench.intervals.reduce((a, b) => a + b, 0)
+      : null,
+    p50: pct(nebula.bench.intervals, 0.5),
+    p95: pct(nebula.bench.intervals, 0.95),
+    maxQuality: Math.max(0, ...nebula.bench.quality),
+  },
   dspWorkerP95: pct(run.bench.dspP95, 0.5),
   syncP95: pct(run.bench.sync, 0.95),
   leadMedian: pct(run.bench.lead, 0.5),
@@ -307,7 +327,7 @@ or Intel Iris Xe laptop), so the CPU-bound numbers are optimistic for that class
 | Metric | Target | Measured | Status |
 |---|---|---|---|
 | Frame rate, 1080p Spectral Tunnel (WebGL2, render worker) | 60 FPS sustained | ${f1(frame.fps)} FPS; frame interval p50 ${f1(frame.p50)} ms, p95 ${f1(frame.p95)} ms over ${run.seconds} s (${frame.count} frames); adaptive quality stayed at level ${frame.maxQuality} | ${status(frame.fps != null && frame.fps >= 59 && frame.p95 <= 18)} |
-| Particle Nebula, 500k particles (WebGPU) | 60 FPS | Not built yet (P1, milestone 11) | not measured |
+| Particle Nebula, 500k particles (WebGPU compute) | 60 FPS | ${results.nebula.backend === "webgpu" ? `${f1(results.nebula.fps)} FPS; frame interval p50 ${f1(results.nebula.p50)} ms, p95 ${f1(results.nebula.p95)} ms over ${results.nebula.seconds} s at 1080p; adaptive quality max level ${results.nebula.maxQuality}` : `WebGPU unavailable (${results.nebula.reason})`} | ${status(results.nebula.backend === "webgpu" ? results.nebula.fps >= 59 && results.nebula.maxQuality === 0 : null)} |
 | DSP time per hop (WASM, 2048/512) | p95 < 1 ms | ${f1(wasm.simd.p95Us, 0)} µs p95 (SIMD), ${f1(wasm.scalar.p95Us, 0)} µs p95 (scalar); live DSP worker p95 ${f1(results.dspWorkerP95, 0)} µs | ${status(wasm.simd.p95Us < 1000)} |
 | A/V sync error, file mode | within ±15 ms | ${f1(results.syncP95)} ms p95, analysis lead ${f1(results.leadMedian, 0)} ms ([caveat](latency.md#what-this-does-and-doesnt-prove)) | ${status(results.syncP95 != null && results.syncP95 <= 15)} |
 | Input latency, live mode | < 50 ms (estimate) | ${f1(liveLatency)} ms (fake capture device; live sources use a 1024/256 STFT) | ${status(liveLatency != null && liveLatency < 50)} |
@@ -348,7 +368,6 @@ of the per-hop time budget.
 ## Not measured here
 
 - **Real speaker/display latency.** Needs the camera check in [latency.md](latency.md).
-- **WebGPU.** Headless Chromium on this machine exposes no WebGPU adapter.
 - **Firefox and Safari.** The e2e suite and benchmarks run Chromium only.
 `;
 writeFileSync(join(root, "docs/benchmarks.md"), md);

@@ -31,6 +31,15 @@ test.describe("visual regression", () => {
     expect(shots[0]!.equals(shots[1]!)).toBe(true);
   });
 
+  test("particle nebula (WebGL2, stateless) at 7.5s of groove-120", async ({ page }) => {
+    await openCapture(page, { src: "/audio/fixtures/groove-120.wav", mode: "nebula" });
+    await renderAt(page, 7.5);
+    await expect(page.locator("#c")).toHaveScreenshot("nebula-groove-7-5.png", {
+      maxDiffPixelRatio: 0.01,
+      threshold: 0.15,
+    });
+  });
+
   test("themes and reduced motion render distinctly", async ({ page }) => {
     await openCapture(page, {
       src: "/audio/fixtures/groove-120.wav",

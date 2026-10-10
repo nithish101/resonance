@@ -38,6 +38,8 @@ export interface AppState {
   dsp: DspStats | null;
   render: RenderStats | null;
   renderer: RendererInfo | null;
+  /** Times the GPU device was lost and rebuilt (RD-12). */
+  gpuRecoveries: number;
   settings: Settings;
   ui: UiState;
 }
@@ -77,6 +79,7 @@ export const initialState: AppState = {
   dsp: null,
   render: null,
   renderer: null,
+  gpuRecoveries: 0,
   settings: DEFAULT_APP_SETTINGS,
   ui: {
     settingsOpen: false,

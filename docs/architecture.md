@@ -21,7 +21,7 @@ flowchart LR
     RD[Ring consumer] --> AN[Rust/WASM analyzer<br/>FFT, mel, onsets, tempo]
   end
   subgraph Render["Render worker (OffscreenCanvas)"]
-    FR[Frame reader<br/>interpolate] --> CORE[Render core<br/>flash limiter, quality] --> GL[WebGL2 backend]
+    FR[Frame reader<br/>interpolate] --> CORE[Render core<br/>flash limiter, quality] --> GL[WebGPU or WebGL2 backend]
   end
   TAP -- "PCM: SPSC ring<br/>SharedArrayBuffer + Atomics" --> RD
   AN -- "Feature frames: seqlock slots<br/>SharedArrayBuffer" --> FR
@@ -118,7 +118,7 @@ packages/web/src/
   audio/             engine (graph, sources, transport), worklet tap, ring buffer, errors
   workers/           dsp.worker.ts, render.worker.ts, WASM analyzer wrapper
   lib/               frame bus, clock, protocol types, WASM loader
-  render/            render core, frame reader, flash limiter, quality, WebGL2 backend, shaders
+  render/            render core, frame reader, flash limiter, quality, WebGL2 and WebGPU backends
   app/               store, controller, render host (main-thread side of rendering)
   ui/                React components
   capture/           deterministic capture page (RD-11)

@@ -7,7 +7,7 @@ import type { ClockSample } from "../lib/clock";
 import type { RenderStats } from "../render/core";
 import { RenderLoop, rafFor } from "../render/loop";
 import type { FrameSource, RenderInbound, RenderOutbound } from "../render/protocol";
-import type { BackendKind, RenderSettings, RendererLocation } from "../render/types";
+import type { BackendKind, FrameProbe, RenderSettings, RendererLocation } from "../render/types";
 import { WebGL2Backend } from "../render/webgl2/backend";
 
 export interface RendererInfo {
@@ -25,6 +25,8 @@ export interface HostOptions {
   force?: string | null;
   onStats: (s: RenderStats) => void;
   onInfo: (i: RendererInfo) => void;
+  /** The GPU context/device was lost and rebuilt (RD-12). */
+  onRecovered?: () => void;
 }
 
 export class RenderHost {
@@ -87,13 +89,8 @@ export class RenderHost {
       const m = e.data;
       if (m.type === "stats") this.opts.onStats(m);
       else if (m.type === "ready")
-        this.opts.onInfo({
-          backend: m.backend,
-          location: "worker",
-          reason: this.opts.caps.webgpu
-            ? "WebGL2 in a render worker (WebGPU renderer not enabled yet)."
-            : "WebGPU unavailable, using WebGL2 in a render worker.",
-        });
+        this.opts.onInfo({ backend: m.backend, location: "worker", reason: m.reason });
+      else if (m.type === "recovered") this.opts.onRecovered?.();
       else if (m.type === "error") this.fallBackToMain(m.message);
     };
     w.onerror = (e) => this.fallBackToMain(e.message);
@@ -105,6 +102,7 @@ export class RenderHost {
       cssH,
       dpr,
       settings: this.opts.settings,
+      preferWebGPU: this.opts.caps.webgpu && this.opts.force !== "webgl2",
     };
     w.postMessage(init, [off]);
     if (this.pendingFrames) this.attach(this.pendingFrames);
@@ -180,6 +178,29 @@ export class RenderHost {
   /** postMessage output clock (sent every frame). */
   pushClock(sample: ClockSample): void {
     this.post({ type: "clockSample", sample });
+  }
+
+  /** Test hook: luminance stats of the next rendered frame, read back from the GPU. */
+  probe(): Promise<FrameProbe> {
+    if (this.loop) return this.loop.probe();
+    const w = this.worker;
+    if (!w) return Promise.reject(new Error("no renderer"));
+    return new Promise((resolve) => {
+      const onMsg = (e: MessageEvent<RenderOutbound>) => {
+        if (e.data.type !== "probe") return;
+        w.removeEventListener("message", onMsg);
+        const { mean, std, lit } = e.data;
+        resolve({ mean, std, lit });
+      };
+      w.addEventListener("message", onMsg);
+      w.postMessage({ type: "probe" });
+    });
+  }
+
+  /** Test hook (RD-12). */
+  simulateLoss(): void {
+    if (this.worker) this.worker.postMessage({ type: "simulate-loss" });
+    else this.loop?.simulateLoss();
   }
 
   setSettings(settings: RenderSettings): void {

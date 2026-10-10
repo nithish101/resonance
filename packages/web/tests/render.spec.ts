@@ -49,3 +49,44 @@ test.describe("rendering (M5)", () => {
     await expect.poll(async () => (await renderState(page)).render?.fps ?? 0).toBeGreaterThan(20);
   });
 });
+
+test.describe("Particle Nebula on WebGL2 (RD-5) and context loss (RD-12)", () => {
+  test("draws a non-blank nebula", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("track-deep-house-soul").click();
+    await page.evaluate(() =>
+      (
+        globalThis as unknown as {
+          __resonance: { controller: { updateSettings(s: Record<string, unknown>): void } };
+        }
+      ).__resonance.controller.updateSettings({ mode: "nebula", particles: 60_000 }),
+    );
+    await expect.poll(async () => (await state(page)).dsp?.hops ?? 0).toBeGreaterThan(100);
+    const lum = await page.evaluate(() =>
+      (
+        globalThis as unknown as {
+          __resonance: { controller: { probeFrame(): Promise<{ std: number; lit: number }> } };
+        }
+      ).__resonance.controller.probeFrame(),
+    );
+    // Mostly dark sky; what matters is that particles are visible.
+    expect(lum.lit).toBeGreaterThan(0.002);
+    expect(lum.std).toBeGreaterThan(5);
+  });
+
+  test("keeps rendering after the WebGL context is lost and restored", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("track-deep-house-soul").click();
+    await expect.poll(async () => (await state(page)).dsp?.hops ?? 0).toBeGreaterThan(50);
+    await page.evaluate(() =>
+      (
+        globalThis as unknown as { __resonance: { controller: { simulateGpuLoss(): void } } }
+      ).__resonance.controller.simulateGpuLoss(),
+    );
+    await page.waitForTimeout(1200);
+    await hideChrome(page);
+    const lum = await luminanceStats(await page.screenshot());
+    expect(lum.std).toBeGreaterThan(8);
+    await expect.poll(async () => (await renderState(page)).render?.fps ?? 0).toBeGreaterThan(20);
+  });
+});

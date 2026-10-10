@@ -51,9 +51,11 @@ const stills = [
   { name: "tunnel-ember", theme: "ember", t: 74.0 },
   { name: "tunnel-tide", theme: "tide", t: 96.5 },
   { name: "tunnel-aurora", theme: "aurora", t: 131.2 },
+  { name: "nebula-ember", theme: "ember", t: 75.0, mode: "nebula" },
+  { name: "nebula-tide", theme: "tide", t: 112.0, mode: "nebula" },
 ];
 for (const s of stills) {
-  const c = await capturePage({ w: 1600, h: 900, theme: s.theme });
+  const c = await capturePage({ w: 1600, h: 900, theme: s.theme, mode: s.mode });
   await c.render(s.t);
   writeFileSync(join(out, `${s.name}.png`), await c.shot());
   await c.page.close();
@@ -68,7 +70,14 @@ for (const s of stills) {
   const c = await capturePage({ w, h, fps, grain: false });
   const gif = GIFEncoder();
   const start = 70;
-  const themes = ["ember", "tide", "aurora"];
+  // Every available mode, in a few themes.
+  const segments = [
+    { mode: "tunnel", theme: "ember" },
+    { mode: "nebula", theme: "ember" },
+    { mode: "tunnel", theme: "tide" },
+    { mode: "nebula", theme: "aurora" },
+  ];
+  const themes = segments.map((x) => `${x.mode}:${x.theme}`);
   const frames = 10 * fps;
   // One palette per theme segment, built from a few of its frames: stable colours (no
   // per-frame palette flicker) and much better LZW compression than per-frame palettes.

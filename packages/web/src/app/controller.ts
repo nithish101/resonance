@@ -14,6 +14,7 @@ export const flags = (() => {
     forcePostMessage: q.get("transport") === "postMessage",
     forceWasmFailure: q.get("wasm") === "fail",
     forceScalar: q.get("wasm") === "scalar",
+    /** "main" (main-thread WebGL2) or "webgl2" (skip WebGPU). */
     renderer: q.get("renderer"),
     calibrate: q.get("calibrate") === "1",
   };
@@ -59,6 +60,16 @@ function startClock(e: AudioEngine): void {
   };
   cancelAnimationFrame(clockLoop);
   clockLoop = requestAnimationFrame(tick);
+}
+
+/** Test hook: luminance stats of the next rendered frame, read back from the GPU. */
+export function probeFrame() {
+  return renderHost ? renderHost.probe() : Promise.reject(new Error("no renderer"));
+}
+
+/** Test hook (RD-12): force a GPU context/device loss; the renderer must recover on its own. */
+export function simulateGpuLoss(): void {
+  renderHost?.simulateLoss();
 }
 
 export function updateSettings(patch: Partial<Settings>): void {

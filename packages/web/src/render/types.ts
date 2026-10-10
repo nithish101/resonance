@@ -66,6 +66,13 @@ export interface Backend {
   draw(state: VisualState): void;
   /** True while the GPU context is lost; draw() is a no-op until restored. */
   readonly lost: boolean;
+  /** Test hook (RD-12): force a context/device loss; the backend must recover by itself. */
+  simulateLoss(): void;
+  /**
+   * Test hook: luminance statistics (0..255) of the next drawn frame, read back from the GPU.
+   * Independent of the page compositor, which headless browsers don't always use for WebGPU.
+   */
+  probe(): Promise<FrameProbe>;
   dispose(): void;
 }
 
@@ -80,3 +87,42 @@ export type AnyCanvas =
       height: number;
       getContext(id: "webgl2", options?: WebGLContextAttributes): WebGL2RenderingContext | null;
     });
+
+export interface FrameProbe {
+  mean: number;
+  std: number;
+  /** Fraction of pixels with luminance above 40/255. */
+  lit: number;
+}
+
+/** Luminance stats over RGBA/BGRA bytes (channel order doesn't change the weights much). */
+export function probeBytes(
+  px: Uint8Array,
+  bgra: boolean,
+  stride = 4,
+  rowBytes = 0,
+  width = 0,
+): FrameProbe {
+  let sum = 0;
+  let sq = 0;
+  let lit = 0;
+  let n = 0;
+  const rows = rowBytes ? Math.floor(px.length / rowBytes) : 1;
+  const cols = rowBytes ? width : px.length / stride;
+  for (let y = 0; y < rows; y++) {
+    const base = y * rowBytes;
+    for (let x = 0; x < cols; x++) {
+      const i = base + x * stride;
+      const r = px[bgra ? i + 2 : i]!;
+      const g = px[i + 1]!;
+      const b = px[bgra ? i : i + 2]!;
+      const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      sum += l;
+      sq += l * l;
+      if (l > 40) lit++;
+      n++;
+    }
+  }
+  const mean = sum / n;
+  return { mean, std: Math.sqrt(Math.max(0, sq / n - mean * mean)), lit: lit / n };
+}

@@ -7,6 +7,7 @@ import { CloseIcon } from "./Icons";
 
 const MODES: { id: ModeId; name: string; available: boolean }[] = [
   { id: "tunnel", name: "Spectral Tunnel", available: true },
+  { id: "nebula", name: "Particle Nebula", available: true },
 ];
 
 function Slider(props: {
@@ -69,6 +70,7 @@ function Toggle(props: {
 export function SettingsPanel() {
   const open = useApp((s) => s.ui.settingsOpen);
   const s = useApp((st) => st.settings);
+  const backend = useApp((st) => st.renderer?.backend);
   if (!open) return null;
   const set = (patch: Partial<Settings>) => updateSettings(patch);
 
@@ -154,7 +156,11 @@ export function SettingsPanel() {
           step={50_000}
           format={(v) => `${Math.round(v / 1000)}k`}
           onChange={(v) => set({ particles: v })}
-          hint="Used by particle modes. Adaptive quality lowers it if frames run long."
+          hint={
+            backend === "webgpu"
+              ? "Particle Nebula, simulated on the GPU. Adaptive quality lowers it if frames run long."
+              : "Particle Nebula. WebGL2 draws at most 150k; WebGPU simulates up to 1M."
+          }
         />
       </fieldset>
 

@@ -56,7 +56,7 @@ Source of truth: [`PRD.md`](../PRD.md). Requirement IDs and priorities (P0/P1/P2
       Deployment steps written down for the owner.
 - [x] **M10 ★ Docs and MVP.** (complete except the live deploy, which needs the owner's AWS account) PRD §13. README, architecture, feature-frame, dsp-notes,
       benchmarks (`pnpm bench`), evaluation (`pnpm eval`), ADRs.
-- [ ] **M11 WebGPU.** RD-2, RD-5, RD-12. WebGPU backend, Particle Nebula, device and context loss.
+- [x] **M11 WebGPU.** RD-2, RD-5, RD-12. WebGPU backend, Particle Nebula, device and context loss.
 - [ ] **M12 Musical analysis.** DSP-7 to DSP-9, the IN-5 timeline, PRD §9.2. Beat tracker,
       chroma and key, offline analysis worker, seek-bar timeline, accuracy eval.
 - [ ] **M13 Polish (P1).** RD-7 to RD-9, UI-4. Post-FX, crossfades, beat camera, shortcuts and
@@ -202,3 +202,14 @@ Real problems hit during the build and how they were solved. Source for the READ
 - **Benchmark variance.** Two full `pnpm bench` runs on the same machine gave a WASM per-hop mean
   of 7.9 µs and 15.1 µs; the second ran while the machine was busy with other work. The README
   quotes the committed run, which is the slower one.
+- **A reserved word made the WebGPU nebula silently black.** `target` is reserved in WGSL; the
+  shader module failed to compile and every later pipeline call was invalid, with nothing on
+  screen and nothing in the console. The backend now logs `uncapturederror` events, which showed
+  the problem at once (and a second one: WGSL requires parentheses when mixing `^` and `*`).
+- **Headless WebGPU needs ANGLE on SwiftShader to present.** In the headless shell,
+  `--enable-unsafe-webgpu` gives a SwiftShader WebGPU adapter, but without
+  `--use-angle=swiftshader` the canvas hands out invalid textures. With the flag, the WebGPU path
+  (tunnel, GPU nebula, device-loss recovery) runs in CI with no GPU. Page screenshots don't
+  reliably include a worker's WebGPU canvas, so those tests read the frame back from the GPU
+  through a test-only probe instead.
+- **Particles collapsing into streams.** See ADR 0008.

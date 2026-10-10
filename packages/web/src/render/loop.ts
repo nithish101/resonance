@@ -102,6 +102,14 @@ export class RenderLoop {
     this.cancel(this.handle);
   }
 
+  simulateLoss(): void {
+    this.backend.simulateLoss();
+  }
+
+  probe() {
+    return this.backend.probe();
+  }
+
   get isRunning(): boolean {
     return this.running;
   }

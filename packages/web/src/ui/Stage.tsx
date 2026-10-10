@@ -16,6 +16,7 @@ export function Stage() {
       force: flags.renderer,
       onStats: (render) => setApp({ render }),
       onInfo: (renderer) => setApp({ renderer }),
+      onRecovered: () => setApp({ gpuRecoveries: useApp.getState().gpuRecoveries + 1 }),
     });
     registerRenderer(host);
     return () => {

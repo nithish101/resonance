@@ -245,7 +245,7 @@ The capability pill and banner always show which renderer and transport are acti
 ## Known limitations
 
 - **No live demo yet.** It needs an AWS account; the stack and pipeline are ready.
-- **WebGPU and Particle Nebula aren't built yet** (P1). WebGL2 is the baseline renderer.
+- **Screenshots and the hero GIF predate the Particle Nebula.** Rerun `pnpm capture` to include it.
 - **Beat tracking, chroma/key, and offline timelines aren't built yet** (P1). Their fields are
   reserved in the feature frame.
 - **Real-music accuracy is unmeasured** until the bundled songs have hand-tapped annotations.

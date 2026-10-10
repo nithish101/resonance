@@ -28,7 +28,7 @@ interface CaptureApi {
   renderAt(time: number): void;
   /** Mean luminance (0..1) of the current frame, for the flash-safety test. */
   luminance(): number;
-  /** Switches colour theme mid-capture (the hero GIF cycles through themes). */
+  /** Switches theme ("ember") or mode and theme ("nebula:ember") mid-capture (hero GIF). */
   setTheme(id: string): void;
 }
 
@@ -106,7 +106,8 @@ async function setup(): Promise<CaptureApi> {
       core.renderAt(time, true);
     },
     setTheme(id: string) {
-      core.setSettings({ ...core.settings, theme: id });
+      const [mode, theme] = id.includes(":") ? id.split(":") : [core.settings.mode, id];
+      core.setSettings({ ...core.settings, mode: mode as ModeId, theme: theme! });
     },
     luminance() {
       // Sample a 64x64 grid spread over the frame.

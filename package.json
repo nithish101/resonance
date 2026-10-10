@@ -14,7 +14,7 @@
     "dev": "pnpm prepare-assets && pnpm --filter @resonance/web dev",
     "build": "pnpm prepare-assets && pnpm --filter @resonance/web build",
     "preview": "pnpm --filter @resonance/web preview",
-    "lint": "eslint . && prettier --check . && cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings",
+    "lint": "eslint . --max-warnings 0 && prettier --check . && cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings",
     "format": "prettier --write . && cargo fmt --all",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm test:rust && pnpm test:unit && pnpm test:e2e",

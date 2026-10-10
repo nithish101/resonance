@@ -32,7 +32,6 @@ interface CaptureApi {
 }
 
 declare global {
-  // eslint-disable-next-line no-var
   var __capture: Promise<CaptureApi> | undefined;
 }
 

@@ -2,8 +2,7 @@
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "lib": ["ES2023"],
-    "types": [],
-    "tsBuildInfoFile": "node_modules/.tmp/worklet.tsbuildinfo"
+    "types": []
   },
   "include": ["src/audio/worklet", "src/audio/shared"],
   "exclude": ["src/**/*.test.ts"]

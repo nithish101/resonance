@@ -212,3 +212,50 @@ test.describe("tab capture (IN-4, IN-8)", () => {
     expect((await state(page)).source).toBeNull();
   });
 });
+
+test.describe("DSP in the browser (M3)", () => {
+  for (const transport of ["shared-memory", "postMessage"] as const) {
+    test(`a 1 kHz tone yields a 1 kHz centroid over ${transport}`, async ({ page }) => {
+      await page.goto(transport === "postMessage" ? "/?coi=0" : "/");
+      await page.getByTestId("track-deep-house-soul").click();
+      await expect.poll(async () => (await state(page)).engine).toBe("ready");
+      await page.evaluate(() => {
+        const r = (
+          globalThis as unknown as {
+            __resonance: { controller: { getEngine(): { playUrl(u: string): Promise<void> } } };
+          }
+        ).__resonance;
+        return r.controller.getEngine().playUrl("/audio/fixtures/sine-1000.wav");
+      });
+      await expect
+        .poll(async () => (await state(page)).dsp?.centroid ?? 0, { timeout: 15_000 })
+        .toBeGreaterThan(900);
+      const s = await state(page);
+      expect(s.dsp!.centroid).toBeLessThan(1100);
+      // 1 kHz is in the "mid" band (index 3), which should dominate.
+      const bands = s.dsp!.bands;
+      expect(bands.indexOf(Math.max(...bands))).toBe(3);
+      expect(s.dsp!.gate).toBe(1);
+    });
+  }
+
+  test("a click track produces onsets at the expected rate", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("track-deep-house-soul").click();
+    await expect.poll(async () => (await state(page)).engine).toBe("ready");
+    await page.evaluate(() => {
+      const r = (
+        globalThis as unknown as {
+          __resonance: { controller: { getEngine(): { playUrl(u: string): Promise<void> } } };
+        }
+      ).__resonance;
+      return r.controller.getEngine().playUrl("/audio/fixtures/click-120.wav");
+    });
+    const start = (await state(page)).dsp?.onsets ?? 0;
+    await page.waitForTimeout(5000);
+    const n = ((await state(page)).dsp?.onsets ?? 0) - start;
+    // 120 BPM = 2 clicks/s; allow for the 0.5 s lead-in and timing slop.
+    expect(n).toBeGreaterThanOrEqual(7);
+    expect(n).toBeLessThanOrEqual(11);
+  });
+});

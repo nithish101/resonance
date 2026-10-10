@@ -37,7 +37,7 @@ Source of truth: [`PRD.md`](../PRD.md). Requirement IDs and priorities (P0/P1/P2
       `getDisplayMedia`** (PRD 5.1.1), live-source health, transport, the AudioWorklet tap, the
       SPSC ring buffer (drop-oldest, overrun counter), and the postMessage fallback transport.
       Also adds `docs/listening-to-other-apps.md`, a user guide per browser and OS.
-- [ ] **M3 DSP core.** DSP-1 to DSP-5, DSP-10, DSP-11. FFT (checked against rustfft), STFT,
+- [x] **M3 DSP core.** DSP-1 to DSP-5, DSP-10, DSP-11. FFT (checked against rustfft), STFT,
       Slaney mel, six bands with envelopes and auto-gain plus a noise gate, flux onsets, centroid
       and RMS, the feature-frame writer, proptest, criterion, and integration into the DSP worker.
 - [ ] **M4 Tempo.** DSP-6. Autocorrelation of the onset envelope with a log-Gaussian prior;
@@ -147,3 +147,14 @@ Real problems hit during the build and how they were solved. Source for the READ
 - **Note on property tests.** The PCM ring lives in TypeScript (it's shared by the worklet and
   the worker), so its property tests use fast-check, the TypeScript equivalent of proptest.
   proptest covers the Rust DSP.
+- **False onsets from beating partials.** On the synthetic groove, spectral flux in dB picked up
+  low-level amplitude beating between pad partials about 100 ms after each hi-hat (precision
+  0.81). A single flux floor relative to the loudest mel bin fixed precision but floored the
+  hats (recall 0.63), because Slaney area normalization puts wide high-frequency bins on a lower
+  dB scale. Flooring each bin 40 dB below its own slow peak gives F = 0.98 on both grooves.
+  This was tuned on synthetic data; the real-song eval (M12) is the honest check.
+- **FFT twiddle layout.** The first radix-2 FFT read twiddles at a stride (`k * n/size`) and
+  branched on direction inside the butterfly loop: 7.7 µs for 2048 points, 3x rustfft. Storing
+  twiddles stage by stage (contiguous per stage, with a separate conjugate table for the
+  inverse) brought it to 5.2 µs. rustfft is still about 2x faster (it uses NEON and mixed
+  radices); that's an accepted trade-off for a readable from-scratch FFT.

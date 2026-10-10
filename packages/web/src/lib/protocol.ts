@@ -42,6 +42,12 @@ export interface DspStats {
   rms: number;
   bpm: number;
   key: number;
+  centroid: number;
+  bands: number[];
+  loudness: number;
+  gate: number;
+  /** Onsets detected since the analyzer started. */
+  onsets: number;
   /** Newest frame's centre, in audio-context seconds. */
   frameTime: number;
   /** Wall-clock (performance.timeOrigin + now) when that frame was published, ms. */

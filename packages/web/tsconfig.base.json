@@ -16,7 +16,6 @@
     "resolveJsonModule": true,
     "useDefineForClassFields": true,
     "noEmit": true,
-    "composite": true,
     "allowImportingTsExtensions": true,
     "types": ["vite/client"]
   }

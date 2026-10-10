@@ -28,6 +28,7 @@ let latestPublishedAt = 0;
 const dspTimes = new Window(512);
 /** Peak per-hop RMS since the last stats message, so short transients aren't missed. */
 let rmsPeak = 0;
+let onsetCount = 0;
 let pending: { samples: Float32Array; frame: number }[] = [];
 const scratch = new Float32Array(4096);
 
@@ -56,6 +57,7 @@ function runHop(a: Analyzer): void {
   dspTimes.push((performance.now() - t0) * 1000);
   const out = a.output();
   rmsPeak = Math.max(rmsPeak, out[F.rms]!);
+  if (out[F.onset]! > 0.5) onsetCount++;
   // The window ends at `nextFrame`; its centre is half a frame earlier.
   const time = nextFrame - a.frameSize / 2;
   if (bus) bus.write(hopIndex, time, out);
@@ -120,6 +122,11 @@ function sendStats(): void {
     rms: rmsPeak,
     bpm: out[F.bpm]!,
     key: out[F.key]!,
+    centroid: out[F.centroid]!,
+    bands: Array.from(out.subarray(F.bands, F.bands + 6)),
+    loudness: out[F.loudness]!,
+    gate: out[F.gate]!,
+    onsets: onsetCount,
     frameTime: latestTime / a.sampleRate,
     framePublishedAt: latestPublishedAt,
   });

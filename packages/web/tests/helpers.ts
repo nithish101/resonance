@@ -6,7 +6,16 @@ export interface StateSnapshot {
   error: { code: string; title: string } | null;
   silentHint: boolean;
   engineInfo: { transport: string; sampleRate: number; simd: boolean } | null;
-  dsp: { hops: number; rms: number; overrunSamples: number; dspP95: number } | null;
+  dsp: {
+    hops: number;
+    rms: number;
+    overrunSamples: number;
+    dspP95: number;
+    centroid: number;
+    bands: number[];
+    gate: number;
+    onsets: number;
+  } | null;
   playback: { playing: boolean; time: number; duration: number };
 }
 

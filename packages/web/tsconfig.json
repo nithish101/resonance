@@ -1,9 +1,4 @@
 {
-  "files": [],
-  "references": [
-    { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.worker.json" },
-    { "path": "./tsconfig.worklet.json" },
-    { "path": "./tsconfig.node.json" }
-  ]
+  "//": "Editor entry point. `pnpm typecheck` checks each environment with its own config.",
+  "extends": "./tsconfig.app.json"
 }

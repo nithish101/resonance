@@ -1,0 +1,76 @@
+name: Deploy
+
+# CD (PRD 12): after CI passes on main, deploy the CDK stack and the site through GitHub OIDC
+# (no long-lived AWS keys), invalidate CloudFront, then smoke-test the live site.
+# Dormant until the repository variable AWS_DEPLOY_ROLE_ARN is set; see docs/deploy.md.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      vars.AWS_DEPLOY_ROLE_ARN != '' &&
+      (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - name: Install wasm-pack
+        run: curl -sSf https://rustwasm.github.io/wasm-pack/installer/init.sh | sh
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: cdk deploy
+        working-directory: infra
+        env:
+          DOMAIN_NAME: ${{ vars.DOMAIN_NAME }}
+          CERTIFICATE_ARN: ${{ vars.CERTIFICATE_ARN }}
+        run: |
+          args=()
+          if [ -n "$DOMAIN_NAME" ]; then args+=(-c "domainName=$DOMAIN_NAME" -c "certificateArn=$CERTIFICATE_ARN"); fi
+          pnpm exec cdk deploy ResonanceSite --require-approval never --outputs-file cdk-outputs.json "${args[@]}"
+
+      - name: Upload site and invalidate
+        id: upload
+        run: |
+          bucket=$(jq -r '.ResonanceSite.BucketName' infra/cdk-outputs.json)
+          dist=$(jq -r '.ResonanceSite.DistributionId' infra/cdk-outputs.json)
+          url=$(jq -r '.ResonanceSite.SiteUrl' infra/cdk-outputs.json)
+          inval=$(scripts/deploy-assets.sh "$bucket" "$dist")
+          aws cloudfront wait invalidation-completed --distribution-id "$dist" --id "$inval"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Install Playwright Chromium
+        run: pnpm --filter @resonance/web exec playwright install --with-deps chromium
+      - name: Smoke test the live site
+        run: node scripts/smoke.mjs "${{ steps.upload.outputs.url }}"
+      - name: Summary
+        run: echo "Deployed to ${{ steps.upload.outputs.url }}" >> "$GITHUB_STEP_SUMMARY"

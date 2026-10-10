@@ -81,3 +81,14 @@ export function renderState(page: Page): Promise<RenderSnapshot> {
     return JSON.parse(JSON.stringify({ render: s.render, renderer: s.renderer })) as RenderSnapshot;
   });
 }
+
+/**
+ * Hides the UI chrome so screenshots measure the canvas alone. Uses the CSSOM rather than an
+ * injected <style> tag, which the production CSP (style-src 'self') blocks.
+ */
+export function hideChrome(page: Page): Promise<void> {
+  return page.evaluate(() => {
+    const c = document.querySelector<HTMLElement>(".chrome");
+    if (c) c.style.display = "none";
+  });
+}

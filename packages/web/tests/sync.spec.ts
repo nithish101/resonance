@@ -1,5 +1,5 @@
 import { expect, test } from "./fixtures";
-import { luminanceStats } from "./helpers";
+import { luminanceStats, hideChrome } from "./helpers";
 
 interface Timing {
   mode: number;
@@ -46,7 +46,7 @@ test.describe("timing and A/V sync (PRD 6.3)", () => {
   test("calibration mode flashes white on clicks and is black between them", async ({ page }) => {
     await page.goto("/?calibrate=1");
     await page.getByTestId("track-calibration").click();
-    await page.addStyleTag({ content: ".chrome { display: none !important; }" });
+    await hideChrome(page);
     const means: number[] = [];
     for (let i = 0; i < 24; i++) {
       means.push((await luminanceStats(await page.screenshot())).mean);

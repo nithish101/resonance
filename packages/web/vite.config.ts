@@ -3,12 +3,16 @@ import react from "@vitejs/plugin-react";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { defineConfig, type Plugin } from "vite";
 
+import securityHeaders from "./security-headers.json" with { type: "json" };
+
 // SharedArrayBuffer needs cross-origin isolation (PRD 6.4, ER-3). Production sets the same
-// headers through the CloudFront response headers policy in infra/.
+// headers through the CloudFront response headers policy in infra/, from the same JSON file.
+const { "//": _comment, ...productionHeaders } = securityHeaders;
+void _comment;
 export const isolationHeaders = {
-  "Cross-Origin-Opener-Policy": "same-origin",
-  "Cross-Origin-Embedder-Policy": "require-corp",
-  "Cross-Origin-Resource-Policy": "same-origin",
+  "Cross-Origin-Opener-Policy": productionHeaders["Cross-Origin-Opener-Policy"],
+  "Cross-Origin-Embedder-Policy": productionHeaders["Cross-Origin-Embedder-Policy"],
+  "Cross-Origin-Resource-Policy": productionHeaders["Cross-Origin-Resource-Policy"],
 };
 
 /**
@@ -34,10 +38,14 @@ function isolationToggle(): Plugin {
 export default defineConfig({
   plugins: [isolationToggle(), react()],
   server: { headers: isolationHeaders, port: 5173, strictPort: true },
-  preview: { headers: isolationHeaders, port: 4173, strictPort: true },
+  // The dev server can't use the CSP (HMR relies on inline scripts and eval); preview serves the
+  // production build with the full production header set.
+  preview: { headers: productionHeaders, port: 4173, strictPort: true },
   worker: { format: "es" },
   build: {
     target: "es2022",
+    // Lists every emitted file; the smoke test and bundle budget read it.
+    manifest: true,
     sourcemap: true,
     assetsInlineLimit: 0,
     rollupOptions: {

@@ -51,7 +51,7 @@ Source of truth: [`PRD.md`](../PRD.md). Requirement IDs and priorities (P0/P1/P2
       overlay, `docs/latency.md`.
 - [x] **M8 Capture.** RD-11. Deterministic capture mode, `pnpm capture` (screenshots and hero
       GIF), visual regression under SwiftShader.
-- [ ] **M9 Infra.** PRD §12. CDK stack (private S3, CloudFront OAC, headers policy, wasm MIME,
+- [x] **M9 Infra.** (deploy-ready; not deployed: no AWS credentials by design. Steps in docs/deploy.md.) PRD §12. CDK stack (private S3, CloudFront OAC, headers policy, wasm MIME,
       caching), CD workflow over GitHub OIDC, smoke test, bundle budget, Lighthouse CI.
       Deployment steps written down for the owner.
 - [ ] **M10 ★ Docs and MVP.** PRD §13. README, architecture, feature-frame, dsp-notes,
@@ -186,3 +186,10 @@ Real problems hit during the build and how they were solved. Source for the READ
   4x real time. Playwright runs 4 workers locally, since each one software-renders.
 - **Film grain made the hero GIF 7.4 MB.** Per-frame noise in every pixel defeats LZW. Capture
   turns grain off for the GIF only and uses one palette per theme segment: 4.8 MB.
+- **One header source for tests and production.** COOP, COEP, CORP, CSP, and Permissions-Policy
+  live in `packages/web/security-headers.json`; `vite preview` serves them and the CDK response
+  headers policy is generated from them. Every e2e run therefore exercises the production CSP.
+  That caught two tests injecting `<style>` tags and an inline `<style>` on the capture page,
+  which `style-src 'self'` blocks.
+- **Lighthouse dropped Time to Interactive.** Lighthouse 10+ no longer reports TTI, so the PRD's
+  "TTI < 2 s" budget is enforced through LCP (< 2 s) and Total Blocking Time (< 200 ms).

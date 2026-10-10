@@ -1,11 +1,11 @@
 import { expect, test } from "./fixtures";
-import { luminanceStats, renderState, state } from "./helpers";
+import { luminanceStats, renderState, state, hideChrome } from "./helpers";
 
 async function playAndShoot(page: import("@playwright/test").Page) {
   await page.getByTestId("track-deep-house-soul").click();
   await expect.poll(async () => (await state(page)).dsp?.hops ?? 0).toBeGreaterThan(100);
   // Hide the UI chrome so the screenshot measures the canvas alone.
-  await page.addStyleTag({ content: ".chrome { display: none !important; }" });
+  await hideChrome(page);
   await page.waitForTimeout(500);
   return luminanceStats(await page.screenshot());
 }

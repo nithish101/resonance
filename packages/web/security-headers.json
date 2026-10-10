@@ -1,0 +1,10 @@
+{
+  "//": "Single source of truth for response headers. Served by `vite preview` (so every e2e run exercises the production CSP) and by the CloudFront response headers policy in infra/. HSTS is added by CloudFront only.",
+  "Cross-Origin-Opener-Policy": "same-origin",
+  "Cross-Origin-Embedder-Policy": "require-corp",
+  "Cross-Origin-Resource-Policy": "same-origin",
+  "Content-Security-Policy": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self'; img-src 'self' data:; media-src 'self' blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Permissions-Policy": "microphone=(self), display-capture=(self), camera=(), geolocation=()"
+}

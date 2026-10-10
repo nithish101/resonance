@@ -8,6 +8,7 @@
 // 3. Render on demand at audio times chosen by the caller, at a fixed timestep. No wall clock is
 //    involved, so the same file, settings, and seed always produce the same pixels.
 
+import "./capture.css";
 import { FRAME_FLOATS, FrameBus } from "../lib/frames";
 import { createAnalyzer } from "../workers/analyzer";
 import { RenderCore } from "../render/core";

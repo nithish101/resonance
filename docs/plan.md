@@ -32,9 +32,11 @@ Source of truth: [`PRD.md`](../PRD.md). Requirement IDs and priorities (P0/P1/P2
 - [ ] **M1 Scaffold.** pnpm + Cargo workspaces, Vite/React/TS strict, WASM build wiring
       (wasm-pack → `vite-plugin-wasm`), COOP/COEP dev and preview headers, ESLint/Prettier/Husky,
       CI skeleton, deterministic fixture generator.
-- [ ] **M2 Audio pipeline.** IN-1, IN-2, IN-3, IN-5, IN-6, IN-7, ER-1, ER-2, ER-3. Covers file,
-      bundled-track, and mic sources, transport, the AudioWorklet tap, the SPSC ring buffer
-      (drop-oldest, overrun counter), and the postMessage fallback transport.
+- [ ] **M2 Audio pipeline.** IN-1 to IN-8, ER-1, ER-2, ER-3. Covers file playback, 3 real
+      bundled songs, mic with an input-device picker (loopback devices), **tab/system capture via
+      `getDisplayMedia`** (PRD 5.1.1), live-source health, transport, the AudioWorklet tap, the
+      SPSC ring buffer (drop-oldest, overrun counter), and the postMessage fallback transport.
+      Also adds `docs/listening-to-other-apps.md`, a user guide per browser and OS.
 - [ ] **M3 DSP core.** DSP-1 to DSP-5, DSP-10, DSP-11. FFT (checked against rustfft), STFT,
       Slaney mel, six bands with envelopes and auto-gain plus a noise gate, flux onsets, centroid
       and RMS, the feature-frame writer, proptest, criterion, and integration into the DSP worker.
@@ -57,8 +59,8 @@ Source of truth: [`PRD.md`](../PRD.md). Requirement IDs and priorities (P0/P1/P2
 - [ ] **M11 WebGPU.** RD-2, RD-5, RD-12. WebGPU backend, Particle Nebula, device and context loss.
 - [ ] **M12 Musical analysis.** DSP-7 to DSP-9, the IN-5 timeline, PRD §9.2. Beat tracker,
       chroma and key, offline analysis worker, seek-bar timeline, accuracy eval.
-- [ ] **M13 Polish (P1).** RD-7 to RD-9, IN-4, UI-4. Post-FX, crossfades, beat camera, tab
-      audio, shortcuts and `?` sheet, URL-hash settings.
+- [ ] **M13 Polish (P1).** RD-7 to RD-9, UI-4. Post-FX, crossfades, beat camera, shortcuts and
+      `?` sheet, URL-hash settings.
 - [ ] **M14 Chroma Bloom (P2).** RD-6, then refresh README numbers, screenshots, and GIF.
 
 ## How each milestone is verified
@@ -66,7 +68,7 @@ Source of truth: [`PRD.md`](../PRD.md). Requirement IDs and priorities (P0/P1/P2
 | # | Verification |
 |---|---|
 | M1 | `pnpm install` on a clean checkout. `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `cargo test` all green. `pnpm dev` serves with the COOP/COEP headers (checked with curl), and a Playwright smoke test asserts `crossOriginIsolated === true` and that the WASM module loads and answers a call. The fixture generator is byte-identical across two runs (hash check). |
-| M2 | proptest on a Rust model of the ring buffer (ordering, capacity, drop-oldest). Vitest on the TS ring buffer. A multi-worker Playwright stress test (producer and consumer workers, millions of samples, checks the sequence and overrun accounting). e2e: start prompt gates the AudioContext; a fixture plays; the oversize-file, unsupported-format, and mic-denied errors render their messages. The non-isolated page runs on the postMessage transport. |
+| M2 | proptest on a Rust model of the ring buffer (ordering, capacity, drop-oldest). Vitest on the TS ring buffer. A multi-worker Playwright stress test (producer and consumer workers, millions of samples, checks the sequence and overrun accounting). e2e: start prompt gates the AudioContext; a fixture plays; the oversize-file, unsupported-format, and mic-denied errors render their messages. The non-isolated page runs on the postMessage transport. Tab capture: Chromium launched with `--auto-select-tab-capture-source-by-title` (or `--auto-select-desktop-capture-source`; confirm which the pinned Chromium honours) captures a second Playwright page playing a fixture tone, and the test asserts the expected FFT peak arrives. A mocked stream without an audio track shows the "tick Share tab audio" message. Stopping the track returns to idle. Manual check: YouTube Music in a real Chrome tab. |
 | M3 | Rust tests: a sine lands in the expected bin; matches rustfft within 1e-4 relative; Parseval; linearity; inverse round-trip (proptest); Hann sums and mel shapes match reference values. An allocation-counting global allocator proves zero allocations per hop. Criterion benches for FFT 2048, hand-written vs rustfft, and the full hop. In the browser, the DSP worker produces frames whose values Playwright reads back. |
 | M4 | Click tracks at 70, 90, 120, 140, and 174 BPM detected within ±2 BPM, with half/double cases counted separately and reported. |
 | M5 | Playwright on headless Chromium (SwiftShader): the canvas has non-blank pixel variance while a fixture plays. Each fallback is forced with a query flag (`?renderer=main`) and checked. A unit test drives the adaptive-quality controller with synthetic frame times. A visibility-hidden emulation stops the render loop. |
@@ -94,7 +96,9 @@ From PRD §15, plus risks specific to this build environment.
 | Flashing visuals affect photosensitive users | Warning, WCAG flash limiter, reduced motion (§5.5). |
 | Scope creep | P0/P1/P2 tags and the MVP line. No P1 work while any P0 is red. |
 | **Env:** headless audio. Playwright has no audio device, so real-time output timing is unrepresentative. | Use Chromium's fake audio flags for functional tests. Real sync and latency numbers come from a headed run on the owner's machine, labelled as such. |
-| **Env:** sourcing bundled tracks and annotations (IN-2, §9.2). I can't verify licences of downloaded music or hand-annotate beats by ear. | The bundled tracks are original procedural compositions generated by `scripts/` and released CC0 by this repo, so licensing is unambiguous and beat ground truth is exact. Real CC0 tracks with hand-made annotations need the owner (see below); until then `docs/evaluation.md` says plainly that the dataset is synthetic. |
+| **Env:** licences of real songs (IN-2) | Only tracks whose source page states CC0 or CC BY explicitly (e.g. Free Music Archive, incompetech, ccMixter). The source URL, licence, and download date are recorded in `ATTRIBUTION.md`. No "royalty-free" tracks whose terms forbid redistribution (e.g. the Pixabay licence). Commercial songs are never bundled; users bring those through file drop or tab capture. |
+| **Env:** beat annotations for real songs (§9.2) | I can't tap along by ear. M12 ships the `eval/annotate` tap tool, and the owner taps each song. Until then, real-song rows in `docs/evaluation.md` are marked "not yet annotated", never filled from the detector. |
+| **Env:** tab capture in headless CI | Chromium's auto-select flag picks a test tab without the picker. Firefox and Safari can't capture tab audio at all, so the loopback route is documented, not tested in CI. |
 | **Env:** perf numbers come from an M5, faster than the PRD's reference laptop | `docs/benchmarks.md` records the exact hardware and notes the gap. |
 | **Env:** bundle budget of 350 KB gzipped (React + WASM) | Track it from M1. Prefer Preact compat or code-splitting the render worker if it gets tight. |
 
@@ -102,7 +106,9 @@ From PRD §15, plus risks specific to this build environment.
 
 - AWS account, GitHub OIDC role bootstrap, and `cdk deploy` (steps arrive in M9).
 - Domain or CloudFront URL for the live demo link.
-- Optional: a few real CC0 tracks plus hand-tapped beat annotations for the eval set.
+- Approve the 3 real songs I shortlist in M2 (or suggest your own CC0/CC BY picks).
+- Tap beat annotations for those songs with `eval/annotate` (M12, about 10 min per song).
+- Check tab capture with YouTube Music in a real Chrome window.
 - Review the generated screenshots and GIF.
 - WebGPU check on a headed browser (M11), Firefox and Safari passes (§17).
 

@@ -46,12 +46,31 @@ Every requirement is tagged:
 | ID | Requirement | Pri |
 |---|---|---|
 | IN-1 | Drag-and-drop or file picker for audio (mp3, wav, ogg, m4a/aac; flac where the browser decodes it) | P0 |
-| IN-2 | 3 bundled CC0/royalty-free tracks with `ATTRIBUTION.md`, so the demo works with one click | P0 |
-| IN-3 | Microphone input via `getUserMedia`, with echo cancellation, noise suppression, and AGC **disabled** (they distort the spectrum) | P0 |
-| IN-4 | Browser-tab audio via `getDisplayMedia({ audio: true })`, where supported (Chromium). Hidden when unsupported | P1 |
+| IN-2 | 3 bundled **real** songs, licensed CC0 or CC BY (royalty-free with attribution), varied in genre and tempo, so the demo works with one click. Each has its source URL, artist, and licence in `ATTRIBUTION.md`. The procedural fixtures are for tests and eval only, not the demo | P0 |
+| IN-3 | Microphone input via `getUserMedia`, with echo cancellation, noise suppression, and AGC **disabled** (they distort the spectrum). Includes an **input-device picker** (`enumerateDevices`), so a loopback device (BlackHole on macOS, VB-Cable on Windows, a PulseAudio/PipeWire monitor on Linux) can feed in whatever the computer is playing, in any browser | P0 |
+| IN-4 | **Listen to another tab or the system** (headline use case: YouTube Music playing in one tab, Resonance visualizing it in another). Uses `getDisplayMedia` (see 5.1.1). Shown where supported (Chromium desktop); elsewhere a hint points to the mic or loopback route | P0 |
+| IN-8 | Live-source health: if a live source stays silent for ~3 s, show a hint (no audio track was shared, wrong device, or the source is muted or silenced by DRM). If the user ends sharing from the browser's own "Stop sharing" bar, return to idle cleanly | P0 |
 | IN-5 | Transport: play/pause, seek, volume, loop. Seek bar shows the energy/beat timeline when available (see 5.2 DSP-9) | P0 |
 | IN-6 | File limits: up to 15 minutes or 100 MB. Larger files get a clear error message rather than a frozen tab | P0 |
 | IN-7 | Handle sample rates of 44.1 and 48 kHz (and others the device reports). All DSP parameters derive from the actual sample rate | P0 |
+
+#### 5.1.1 Capturing another tab or system audio (IN-4)
+Browser support as checked on 2026-10-10 (re-verify at build time):
+
+| Browser | Tab audio | Whole-system audio | Route |
+|---|---|---|---|
+| Chrome / Edge / other Chromium, desktop | Yes | Windows and ChromeOS; macOS since Chrome 141 | `getDisplayMedia` |
+| Firefox, Safari | No (the audio request is ignored) | No | Loopback device as the mic input (IN-3) |
+| Mobile browsers | No | No | Microphone |
+
+Implementation rules:
+- Request `getDisplayMedia({ video: true, audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, suppressLocalAudioPlayback: false }, systemAudio: "include", selfBrowserSurface: "exclude", surfaceSwitching: "include" })`. Chrome rejects audio-only requests, so video is requested and its track is **stopped immediately**.
+- If the returned stream has no audio track, the user didn't tick "Share tab audio". Show a specific message with a retry, not a generic error.
+- Feed the stream into the AudioWorklet tap only. **Never** connect it to `destination`: the source tab is still playing, so routing it out again would double the audio.
+- Treat it as live mode (PRD 6.3): minimise capture-to-photon latency.
+- Listen for the audio track's `ended` event (the user clicked "Stop sharing") and return to idle (IN-8).
+- The visualizer tab must stay visible to render (RD-13). The source tab can be in the background; browsers keep audible tabs running.
+- Audio never leaves the browser; capture is analysed locally, never recorded or uploaded.
 
 Playback path: files play through `HTMLAudioElement` → `MediaElementAudioSourceNode`. This streams instead of decoding the whole file into memory (a 10-minute stereo track decoded is roughly 230 MB). A separate decode is used only for offline analysis, downmixed to mono.
 
@@ -110,7 +129,7 @@ Playback path: files play through `HTMLAudioElement` → `MediaElementAudioSourc
 | ID | Requirement | Pri |
 |---|---|---|
 | ER-1 | Autoplay policy: `AudioContext` is created or resumed only on a user gesture; the UI shows a start prompt | P0 |
-| ER-2 | Clear messages for mic/tab permission denied, unsupported format, decode failure, and file too large | P0 |
+| ER-2 | Clear messages for mic/tab permission denied, tab shared without audio, unsupported format, decode failure, and file too large | P0 |
 | ER-3 | If the page isn't cross-origin isolated (no `SharedArrayBuffer`), fall back to a `postMessage` transport and say so in the debug overlay | P0 |
 | ER-4 | Silence or near-silence doesn't cause auto-gain to amplify noise into flashing (noise gate below a floor) | P0 |
 | ER-5 | WASM load failure shows an error state instead of a blank canvas | P0 |
@@ -203,7 +222,7 @@ Every asset is self-hosted (fonts, audio, WASM), because `Cross-Origin-Embedder-
 
 ### 9.2 Accuracy evaluation (scripted, reported in README)
 - `npm run eval` runs onset and beat detection against annotated tracks and reports **F-measure with a ±70 ms tolerance**, the standard MIR evaluation metric. Tempo accuracy is reported as Acc1 (within 4%) and Acc2 (also allowing half/double).
-- Dataset: the synthetic fixtures plus a small set of permissively licensed tracks with hand-made beat annotations committed to the repo. Licenses are recorded in `ATTRIBUTION.md`.
+- Dataset: the synthetic fixtures (exact ground truth) plus the bundled real songs, with hand-made beat annotations committed to the repo. Licenses are recorded in `ATTRIBUTION.md`. Annotations come from a small tap tool (`eval/annotate`): a person taps along with the song in two passes, the taps are averaged and corrected for tap latency, and the result is saved as a `.beats` file. Annotations are never derived from Resonance's own detector, which would make the eval circular.
 - Results go in `docs/evaluation.md` and a summary table in the README. Honest numbers beat impressive-sounding ones.
 
 ## 10. Browser Support
@@ -268,7 +287,7 @@ Each milestone ends with green CI and a commit. ★ marks the MVP cut line.
 | # | Milestone | Key IDs |
 |---|---|---|
 | 1 | Scaffold: pnpm + Cargo workspaces, Vite/React/TS, WASM build wiring, COOP/COEP dev headers, CI skeleton, fixture generator | — |
-| 2 | Audio pipeline: sources, transport, AudioWorklet, SPSC ring buffer, postMessage fallback, error states | IN-1..3, IN-5..7, ER-1..3 |
+| 2 | Audio pipeline: sources (file, real bundled songs, mic + device picker, tab/system capture), transport, AudioWorklet, SPSC ring buffer, postMessage fallback, error states | IN-1..8, ER-1..3 |
 | 3 | DSP core: FFT, STFT, mel, band energies, centroid/RMS, auto-gain; tests + benchmarks; WASM integration | DSP-1..5, DSP-10..11 |
 | 4 | Tempo: onset envelope, autocorrelation tempo; click-track tests | DSP-6 |
 | 5 | Rendering v1: renderer interface, WebGL2 backend, Spectral Tunnel, worker/main-thread fallback, adaptive quality, visibility pause | RD-1, RD-3, RD-4, RD-10, RD-13 |
@@ -279,7 +298,7 @@ Each milestone ends with green CI and a commit. ★ marks the MVP cut line.
 | 10 | ★ Docs: README, architecture docs, ADRs, benchmarks. **MVP complete** | §13 |
 | 11 | WebGPU backend + Particle Nebula, device-loss handling | RD-2, RD-5, RD-12 |
 | 12 | Beat tracking, chroma/key, offline analysis + timeline, accuracy eval | DSP-7..9, IN-5 timeline, §9.2 |
-| 13 | Post-FX, transitions, beat camera, tab audio, shortcuts, URL settings | RD-7..9, IN-4, UI-4 |
+| 13 | Post-FX, transitions, beat camera, shortcuts, URL settings | RD-7..9, UI-4 |
 | 14 | Chroma Bloom and P2 polish; refresh README numbers, screenshots, and GIF | RD-6 |
 
 ## 15. Risks and Mitigations
@@ -309,3 +328,6 @@ Each milestone ends with green CI and a commit. ★ marks the MVP cut line.
 - CI is green; Rust coverage is reported.
 - README follows section 13, and every screenshot comes from capture mode.
 - An engineer can explain the threading and sync design from `docs/` alone.
+
+## Change log
+- **v2.1 (2026-10-10):** IN-4 (tab/system audio capture) promoted from P1 to P0 and moved into milestone 2, with implementation rules in 5.1.1. IN-3 gains an input-device picker for loopback devices. New IN-8 (live-source health). IN-2 now requires real CC0/CC BY songs, not procedural tracks. §9.2 specifies the tap-annotation tool for real-song ground truth.

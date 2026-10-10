@@ -20,12 +20,19 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.strict,
   {
-    files: ["**/*.{ts,tsx}"],
-    languageOptions: { globals: { ...globals.browser, ...globals.worker } },
+    // React rules only apply to app source; Playwright fixtures have a `use` callback that the
+    // hooks rule mistakes for React's `use`.
+    files: ["packages/web/src/**/*.{ts,tsx}"],
     plugins: { "react-hooks": reactHooks, "react-refresh": reactRefresh },
     rules: {
       ...reactHooks.configs.recommended.rules,
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
+    },
+  },
+  {
+    files: ["**/*.{ts,tsx}"],
+    languageOptions: { globals: { ...globals.browser, ...globals.worker } },
+    rules: {
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
       // noUncheckedIndexedAccess makes every typed-array read `T | undefined`. In audio and
       // render hot loops the index is bounds-correct by construction, and `!` is the

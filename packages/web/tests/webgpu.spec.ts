@@ -31,6 +31,8 @@ const setMode = (page: import("@playwright/test").Page, mode: string, particles?
   );
 
 test.describe("WebGPU renderer (RD-2, RD-5, RD-12)", () => {
+  // Software WebGPU (SwiftShader) is slow; a small viewport keeps the GPU process responsive.
+  test.use({ viewport: { width: 640, height: 360 } });
   test.beforeEach(({ page }) => {
     page.on("worker", (w) =>
       w.on("console", (m) => {
@@ -54,7 +56,7 @@ test.describe("WebGPU renderer (RD-2, RD-5, RD-12)", () => {
     await page.goto("/");
     await expect.poll(async () => (await renderState(page)).renderer?.backend).toBe("webgpu");
     await page.getByTestId("track-deep-house-soul").click();
-    await setMode(page, "nebula", 100_000);
+    await setMode(page, "nebula", 20_000);
     await expect.poll(async () => (await state(page)).dsp?.hops ?? 0).toBeGreaterThan(100);
     const lum = await frame(page);
     expect(lum.lit).toBeGreaterThan(0.002); // visible particles

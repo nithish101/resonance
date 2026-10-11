@@ -53,6 +53,8 @@ export class WebGPUBackend implements Backend {
   private probeWaiters: ((p: FrameProbe) => void)[] = [];
   /** Called after a lost device has been replaced (for the debug overlay / tests). */
   onRecovered: (() => void) | null = null;
+  /** Called if a lost device can't be replaced; the host then falls back to WebGL2. */
+  onFatal: ((message: string) => void) | null = null;
 
   private constructor(private readonly canvas: WebGPUCanvas) {}
 
@@ -108,7 +110,10 @@ export class WebGPUBackend implements Backend {
           this._lost = false;
           this.onRecovered?.();
         })
-        .catch((e: unknown) => console.error("WebGPU rebuild failed", e));
+        .catch((e: unknown) => {
+          console.error("WebGPU rebuild failed", e);
+          this.onFatal?.(e instanceof Error ? e.message : String(e));
+        });
     });
 
     const context = this.canvas.getContext("webgpu") as GPUCanvasContext;

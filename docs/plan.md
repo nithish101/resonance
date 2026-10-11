@@ -213,3 +213,9 @@ Real problems hit during the build and how they were solved. Source for the READ
   reliably include a worker's WebGPU canvas, so those tests read the frame back from the GPU
   through a test-only probe instead.
 - **Particles collapsing into streams.** See ADR 0008.
+- **WebGPU on Linux CI runners.** GitHub's Ubuntu runners give a SwiftShader WebGPU adapter, but
+  the device is lost within seconds and can't be re-created, so the WebGPU e2e project only runs
+  on macOS, where both the SwiftShader and Metal adapters pass. The episode exposed a real gap:
+  a WebGPU device that can't be rebuilt left the canvas black. The render worker now reports it
+  and the host moves rendering to WebGL2 on a fresh canvas. Test probes also time out instead of
+  hanging.

@@ -185,9 +185,11 @@ export class RenderHost {
     if (this.loop) return this.loop.probe();
     const w = this.worker;
     if (!w) return Promise.reject(new Error("no renderer"));
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error("probe timed out")), 10_000);
       const onMsg = (e: MessageEvent<RenderOutbound>) => {
         if (e.data.type !== "probe") return;
+        clearTimeout(timer);
         w.removeEventListener("message", onMsg);
         const { mean, std, lit } = e.data;
         resolve({ mean, std, lit });

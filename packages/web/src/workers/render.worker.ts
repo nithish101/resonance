@@ -20,6 +20,9 @@ async function createBackend(canvas: OffscreenCanvas, preferWebGPU: boolean) {
       const gpu = await WebGPUBackend.create(canvas);
       if (gpu) {
         gpu.onRecovered = () => post({ type: "recovered" });
+        // The host reacts to an error by moving rendering to WebGL2 on a fresh canvas.
+        gpu.onFatal = (message) =>
+          post({ type: "error", message: `WebGPU device lost and not recoverable: ${message}` });
         return {
           backend: gpu as Backend,
           reason: `WebGPU (${gpu.adapterName}) in a render worker.`,

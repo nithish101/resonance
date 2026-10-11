@@ -1,20 +1,24 @@
 // Adaptive quality (RD-10): if frame time exceeds the budget for about a second, step down
-// (particle count first, then render resolution); step back up after sustained headroom.
+// (particle count first, then bloom, then render resolution); step back up after sustained
+// headroom.
 
 export interface QualityLevel {
   /** Fraction of the configured particle count. */
   particles: number;
   /** Fraction of device-pixel resolution. */
   scale: number;
+  /** Whether the expensive post passes (bloom) may run. */
+  post: boolean;
 }
 
 export const QUALITY_LEVELS: readonly QualityLevel[] = [
-  { particles: 1, scale: 1 },
-  { particles: 0.6, scale: 1 },
-  { particles: 0.35, scale: 1 },
-  { particles: 0.35, scale: 0.8 },
-  { particles: 0.2, scale: 0.65 },
-  { particles: 0.1, scale: 0.5 },
+  { particles: 1, scale: 1, post: true },
+  { particles: 0.6, scale: 1, post: true },
+  { particles: 0.35, scale: 1, post: true },
+  { particles: 0.35, scale: 1, post: false },
+  { particles: 0.35, scale: 0.8, post: false },
+  { particles: 0.2, scale: 0.65, post: false },
+  { particles: 0.1, scale: 0.5, post: false },
 ];
 
 export interface QualityOptions {

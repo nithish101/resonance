@@ -242,3 +242,9 @@ Real problems hit during the build and how they were solved. Source for the READ
 - **Banner over the picker.** With Linux font metrics the capability banner overlapped the bottom
   of the source picker and intercepted clicks. The banner now appears once something is playing;
   the top-bar pill shows the active renderer and transport from the start.
+- **Tests racing the auto-hiding controls.** On the slower CI runner, steps after playback
+  started could take more than the 3 s auto-hide delay, so clicks waited forever on controls with
+  `pointer-events: none`. Tests now wake the controls before clicking. Also: a stats window with
+  no rendered frames (software rendering with bloom on a 2-core runner) used to report 0 ms lead
+  and sync; the core now keeps the last real reading, and adaptive quality drops bloom before it
+  drops resolution.

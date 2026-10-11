@@ -125,6 +125,8 @@ test.describe("capability banner (UI-5)", () => {
     await expect(banner).toContainText("main thread");
     await expect(page.getByTestId("capability-pill")).toHaveText(/postMessage/);
     await expect(banner).toContainText("cross-origin isolated");
+    // Playback auto-hides the controls after 3 s; wake them before clicking.
+    await page.mouse.move(300, 300);
     await banner.getByRole("button", { name: "OK" }).click();
     await expect(banner).toHaveCount(0);
     expect((await renderState(page)).renderer?.location).toBe("main");

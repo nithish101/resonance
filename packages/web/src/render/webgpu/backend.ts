@@ -372,7 +372,7 @@ export class WebGPUBackend implements Backend {
     const P = (dir: [number, number] = [0, 0]) =>
       new Float32Array([
         mix,
-        s.settings.bloom ? 0.9 : 0,
+        s.settings.bloom && s.postAllowed ? 0.9 : 0,
         aberration,
         s.settings.grain ? 1 : 0,
         s.time,
@@ -442,7 +442,7 @@ export class WebGPUBackend implements Backend {
     drawMode(s.settings.mode, post.scene[0].createView());
     if (fading) drawMode(s.prevMode!, post.scene[1].createView());
 
-    if (s.settings.bloom) {
+    if (s.settings.bloom && s.postAllowed) {
       fullscreen(post.bloom[0].createView(), g.bright, fading ? post.brightFade : post.brightSame);
       fullscreen(post.bloom[1].createView(), g.blur, post.blurH);
       fullscreen(post.bloom[0].createView(), g.blur, post.blurV);

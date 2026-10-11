@@ -24,11 +24,10 @@ test.describe("timing and A/V sync (PRD 6.3)", () => {
     await page.goto("/");
     await page.getByTestId("track-deep-house-soul").click();
     await expect.poll(async () => (await timing(page))?.mode).toBe(1);
-    await page.waitForTimeout(1500);
-    const t = (await timing(page))!;
     // Visuals show the frame for the output time; analysis must stay ahead of it.
-    expect(t.syncErrorP95).toBeLessThanOrEqual(15);
-    expect(t.leadMs).toBeGreaterThan(20);
+    await expect.poll(async () => (await timing(page))?.leadMs ?? 0).toBeGreaterThan(20);
+    expect((await timing(page))!.syncErrorP95).toBeLessThanOrEqual(15);
+    await page.mouse.move(300, 300);
     await page.keyboard.press("d");
     await expect(page.getByTestId("debug-sync")).toHaveText(/^\d+\.\d · \d+\.\d ms$/);
   });

@@ -70,6 +70,8 @@ export interface VisualState {
   /** Device-pixel scale after adaptive quality. */
   scale: number;
   particleFraction: number;
+  /** Adaptive quality allows the expensive post passes (bloom). */
+  postAllowed: boolean;
 }
 
 export interface Backend {

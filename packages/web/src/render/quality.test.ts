@@ -44,6 +44,13 @@ describe("adaptive quality (RD-10)", () => {
     expect(q.level).toBe(low - 1);
   });
 
+  it("drops bloom before resolution", () => {
+    const firstNoPost = QUALITY_LEVELS.findIndex((l) => !l.post);
+    const firstScaled = QUALITY_LEVELS.findIndex((l) => l.scale < 1);
+    expect(firstNoPost).toBeGreaterThan(0);
+    expect(firstNoPost).toBeLessThan(firstScaled);
+  });
+
   it("levels never increase in cost as they go down", () => {
     for (let i = 1; i < QUALITY_LEVELS.length; i++) {
       expect(QUALITY_LEVELS[i]!.particles).toBeLessThanOrEqual(QUALITY_LEVELS[i - 1]!.particles);

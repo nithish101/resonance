@@ -52,6 +52,9 @@ export class RenderCore {
   private leads: number[] = [];
   private latencies: number[] = [];
   private mode = 0;
+  private lastSync: [number, number] = [0, 0];
+  private lastLead = 0;
+  private lastLatency = 0;
   /** Offline beat grid (media seconds) for the current file, when analysed (DSP-9). */
   private beats: number[] | null = null;
   private lastGridBeat = -1;
@@ -80,6 +83,7 @@ export class RenderCore {
       onsetAge: 99,
       beatPulse: 0,
       beatPhase: 0,
+      postAllowed: true,
       camZoom: 1,
       camRoll: 0,
       prevMode: null,
@@ -123,6 +127,7 @@ export class RenderCore {
     const q = this.quality.current;
     this.state.scale = q.scale;
     this.state.particleFraction = q.particles;
+    this.state.postAllowed = q.post;
     const w = Math.max(1, Math.round(this.cssW * this.dpr * q.scale));
     const h = Math.max(1, Math.round(this.cssH * this.dpr * q.scale));
     this.backend.resize(w, h);
@@ -266,6 +271,13 @@ export class RenderCore {
       return s[Math.min(s.length - 1, Math.floor(s.length * 0.95))]!;
     };
     const total = this.intervals.reduce((x, y) => x + y, 0);
+    // A window with no frames (very slow or software rendering) keeps the last timing readings
+    // instead of reporting zeros that look like measurements.
+    if (this.syncErrors.length) {
+      this.lastSync = [med(this.syncErrors.map(Math.abs)), p95(this.syncErrors.map(Math.abs))];
+    }
+    if (this.leads.length) this.lastLead = med(this.leads);
+    if (this.latencies.length) this.lastLatency = med(this.latencies);
     const stats: RenderStats = {
       fps: total > 0 ? (this.intervals.length * 1000) / total : 0,
       frameMs: med(this.works),
@@ -273,10 +285,10 @@ export class RenderCore {
       quality: this.quality.level,
       scale: this.quality.current.scale,
       mode: this.mode,
-      syncErrorMs: med(this.syncErrors.map(Math.abs)),
-      syncErrorP95: p95(this.syncErrors.map(Math.abs)),
-      leadMs: med(this.leads),
-      inputLatencyMs: med(this.latencies),
+      syncErrorMs: this.lastSync[0],
+      syncErrorP95: this.lastSync[1],
+      leadMs: this.lastLead,
+      inputLatencyMs: this.lastLatency,
       flashesSuppressed: this.limiter.suppressed,
       intervals: this.intervals.filter((x) => x > 0),
     };

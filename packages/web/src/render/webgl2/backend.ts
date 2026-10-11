@@ -185,7 +185,8 @@ export class WebGL2Backend implements Backend {
       s.settings.aberration && !s.settings.reducedMotion
         ? 0.012 * s.beatPulse * s.settings.intensity
         : 0;
-    const post = s.settings.bloom || aberration > 0 || s.settings.grain || fading;
+    const post =
+      (s.settings.bloom && s.postAllowed) || aberration > 0 || s.settings.grain || fading;
 
     if (!post) {
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -208,7 +209,7 @@ export class WebGL2Backend implements Backend {
     const mix = fading ? s.mix : 1;
 
     const [b0, b1] = this.bloom as [Target, Target];
-    if (s.settings.bloom) {
+    if (s.settings.bloom && s.postAllowed) {
       gl.viewport(0, 0, b0.w, b0.h);
       gl.bindFramebuffer(gl.FRAMEBUFFER, b0.fb);
       this.post("bright", { uA: a.tex, uB: cur.tex }, { uMix: mix }, [1 / w, 1 / h]);
@@ -225,7 +226,7 @@ export class WebGL2Backend implements Backend {
       { uA: a.tex, uB: cur.tex, uBloom: b0.tex },
       {
         uMix: mix,
-        uBloomAmt: s.settings.bloom ? 0.9 : 0,
+        uBloomAmt: s.settings.bloom && s.postAllowed ? 0.9 : 0,
         uAberration: aberration,
         uGrain: s.settings.grain ? 1 : 0,
         uTime: s.time,

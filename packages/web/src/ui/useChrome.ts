@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { togglePlay } from "../app/controller";
+import { cycle, nudgeSeek, nudgeVolume, togglePlay, updateSettings } from "../app/controller";
 import { setUi, useApp } from "../app/store";
 
 const HIDE_AFTER_MS = 3000;
@@ -35,16 +35,58 @@ export function useChrome(): void {
       schedule();
       const ui = useApp.getState().ui;
       if (e.key === "Escape") {
-        setUi({ settingsOpen: false });
+        setUi({ settingsOpen: false, helpOpen: false });
         return;
       }
       if (e.metaKey || e.ctrlKey || e.altKey || isTyping(e.target)) return;
       if (!ui.warningAccepted) return;
-      if (e.key === "d" || e.key === "D") setUi({ debugOpen: !ui.debugOpen });
-      else if (e.key === "s" || e.key === "S") setUi({ settingsOpen: !ui.settingsOpen });
-      else if (e.key === " " && !(e.target instanceof HTMLButtonElement)) {
-        e.preventDefault();
-        togglePlay();
+      const onButton = e.target instanceof HTMLButtonElement;
+      switch (e.key) {
+        case "d":
+        case "D":
+          setUi({ debugOpen: !ui.debugOpen });
+          break;
+        case "s":
+        case "S":
+          setUi({ settingsOpen: !ui.settingsOpen });
+          break;
+        case "?":
+          setUi({ helpOpen: !ui.helpOpen });
+          break;
+        case "f":
+        case "F":
+          if (document.fullscreenElement) void document.exitFullscreen();
+          else void document.documentElement.requestFullscreen?.();
+          break;
+        case "m":
+        case "M":
+          cycle("mode");
+          break;
+        case "t":
+        case "T":
+          cycle("theme");
+          break;
+        case "r":
+        case "R":
+          updateSettings({ reducedMotion: !useApp.getState().settings.reducedMotion });
+          break;
+        case " ":
+          if (onButton) return;
+          e.preventDefault();
+          togglePlay();
+          break;
+        case "ArrowLeft":
+        case "ArrowRight":
+          if (onButton) return;
+          e.preventDefault();
+          nudgeSeek(e.key === "ArrowLeft" ? -5 : 5);
+          break;
+        case "ArrowUp":
+        case "ArrowDown":
+          if (onButton) return;
+          e.preventDefault();
+          nudgeVolume(e.key === "ArrowDown" ? -0.05 : 0.05);
+          break;
       }
     };
     const events = ["pointermove", "pointerdown", "focusin", "wheel"] as const;

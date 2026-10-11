@@ -8,6 +8,7 @@ import { CloseIcon } from "./Icons";
 const MODES: { id: ModeId; name: string; available: boolean }[] = [
   { id: "tunnel", name: "Spectral Tunnel", available: true },
   { id: "nebula", name: "Particle Nebula", available: true },
+  { id: "bloom", name: "Chroma Bloom", available: true },
 ];
 
 function Slider(props: {
@@ -189,6 +190,18 @@ export function SettingsPanel() {
 
       <fieldset>
         <legend className="label">Effects and comfort</legend>
+        <Toggle
+          label="Bloom"
+          checked={s.bloom}
+          onChange={(v) => set({ bloom: v })}
+          testid="bloom"
+        />
+        <Toggle
+          label="Beat aberration"
+          checked={s.aberration}
+          onChange={(v) => set({ aberration: v })}
+          hint="Colour fringing on each beat. Off under reduced motion."
+        />
         <Toggle label="Film grain" checked={s.grain} onChange={(v) => set({ grain: v })} />
         <Toggle
           label="Reduced motion"
@@ -198,6 +211,19 @@ export function SettingsPanel() {
           testid="reduced-motion"
         />
       </fieldset>
+
+      <div className="row panel-foot">
+        <button
+          className="btn"
+          onClick={() => void navigator.clipboard?.writeText(location.href)}
+          data-testid="copy-link"
+        >
+          Copy link to these settings
+        </button>
+        <button className="btn" onClick={() => setUi({ helpOpen: true })}>
+          Shortcuts
+        </button>
+      </div>
     </aside>
   );
 }

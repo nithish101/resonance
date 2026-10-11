@@ -90,3 +90,25 @@ test.describe("Particle Nebula on WebGL2 (RD-5) and context loss (RD-12)", () =>
     await expect.poll(async () => (await renderState(page)).render?.fps ?? 0).toBeGreaterThan(20);
   });
 });
+
+test("Chroma Bloom draws petals from live chroma (RD-6)", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("track-deep-house-soul").click();
+  await page.evaluate(() =>
+    (
+      globalThis as unknown as {
+        __resonance: { controller: { updateSettings(s: Record<string, unknown>): void } };
+      }
+    ).__resonance.controller.updateSettings({ mode: "bloom" }),
+  );
+  await expect.poll(async () => (await state(page)).dsp?.hops ?? 0).toBeGreaterThan(200);
+  const lum = await page.evaluate(() =>
+    (
+      globalThis as unknown as {
+        __resonance: { controller: { probeFrame(): Promise<{ std: number; lit: number }> } };
+      }
+    ).__resonance.controller.probeFrame(),
+  );
+  expect(lum.lit).toBeGreaterThan(0.002);
+  expect(lum.std).toBeGreaterThan(5);
+});

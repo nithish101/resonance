@@ -3,8 +3,9 @@
 // device loss by rebuilding everything on a new device (RD-12).
 
 import { F, MEL_BANDS } from "../../lib/frames";
-import { probeBytes, type Backend, type FrameProbe, type VisualState } from "../types";
+import { probeBytes, type Backend, type FrameProbe, type ModeId, type VisualState } from "../types";
 import {
+  POST_WGSL,
   NEBULA_COMPOSITE_WGSL,
   NEBULA_DRAW_WGSL,
   NEBULA_SIM_WGSL,
@@ -13,7 +14,23 @@ import {
 
 /** Storage for this many particles is allocated once (32 bytes each: 32 MB). */
 export const WEBGPU_MAX_PARTICLES = 1 << 20;
-const UNIFORM_FLOATS = 100; // 400 bytes, mirrors `struct U` in shaders.wgsl.ts
+const UNIFORM_FLOATS = 120; // 480 bytes, mirrors `struct U` in shaders.wgsl.ts
+/** Modes render into these before post-processing; the final pass writes the canvas format. */
+const SCENE_FORMAT: GPUTextureFormat = "rgba8unorm";
+const POST_FLOATS = 12; // mirrors `struct P` in POST_WGSL
+
+interface PostTargets {
+  w: number;
+  h: number;
+  scene: [GPUTexture, GPUTexture];
+  bloom: [GPUTexture, GPUTexture];
+  brightSame: GPUBindGroup;
+  brightFade: GPUBindGroup;
+  blurH: GPUBindGroup;
+  blurV: GPUBindGroup;
+  finalSame: GPUBindGroup;
+  finalFade: GPUBindGroup;
+}
 const HDR_FORMAT: GPUTextureFormat = "rgba16float";
 
 interface Gpu {
@@ -24,6 +41,8 @@ interface Gpu {
   particles: GPUBuffer;
   tunnel: GPURenderPipeline;
   calibrate: GPURenderPipeline;
+  chromaBloom: GPURenderPipeline;
+  chromaGroup: GPUBindGroup;
   simulate: GPUComputePipeline;
   draw: GPURenderPipeline;
   composite: GPURenderPipeline;
@@ -33,6 +52,13 @@ interface Gpu {
   drawGroup: GPUBindGroup;
   hdr: GPUTexture | null;
   compositeGroup: GPUBindGroup | null;
+  bright: GPURenderPipeline;
+  blur: GPURenderPipeline;
+  final: GPURenderPipeline;
+  sampler: GPUSampler;
+  /** Uniform buffers for the bright, horizontal blur, vertical blur, and final passes. */
+  postU: [GPUBuffer, GPUBuffer, GPUBuffer, GPUBuffer];
+  post: PostTargets | null;
 }
 
 /** WebGPU is first in the fallback chain only for the render worker (PRD 6.4). */
@@ -143,8 +169,9 @@ export class WebGPUBackend implements Backend {
         fragment: { module: mod, entryPoint, targets: [{ format: targetFormat }] },
         primitive: { topology: "triangle-list" },
       });
-    const tunnel = fullscreen("tunnel", tunnelModule, format);
-    const calibrate = fullscreen("calibrate", tunnelModule, format);
+    const tunnel = fullscreen("tunnel", tunnelModule, SCENE_FORMAT);
+    const calibrate = fullscreen("calibrate", tunnelModule, SCENE_FORMAT);
+    const chromaBloom = fullscreen("chromaBloom", tunnelModule, SCENE_FORMAT);
 
     const simModule = device.createShaderModule({ code: NEBULA_SIM_WGSL });
     const simulate = device.createComputePipeline({
@@ -166,8 +193,21 @@ export class WebGPUBackend implements Backend {
     const composite = fullscreen(
       "composite",
       device.createShaderModule({ code: NEBULA_COMPOSITE_WGSL }),
-      format,
+      SCENE_FORMAT,
     );
+    const postModule = device.createShaderModule({ code: POST_WGSL });
+    const postPipe = (entryPoint: string, targetFormat: GPUTextureFormat) =>
+      device.createRenderPipeline({
+        layout: "auto",
+        vertex: { module: postModule, entryPoint: "vs" },
+        fragment: { module: postModule, entryPoint, targets: [{ format: targetFormat }] },
+        primitive: { topology: "triangle-list" },
+      });
+    const postBuf = () =>
+      device.createBuffer({
+        size: POST_FLOATS * 4,
+        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+      });
 
     const group = (p: GPURenderPipeline | GPUComputePipeline, entries: GPUBindGroupEntry[]) =>
       device.createBindGroup({ layout: p.getBindGroupLayout(0), entries });
@@ -185,10 +225,18 @@ export class WebGPUBackend implements Backend {
       composite,
       tunnelGroup: group(tunnel, [uBinding]),
       calibrateGroup: group(calibrate, [uBinding]),
+      chromaBloom,
+      chromaGroup: group(chromaBloom, [uBinding]),
       simGroup: group(simulate, [uBinding, { binding: 1, resource: { buffer: particles } }]),
       drawGroup: group(draw, [uBinding, { binding: 1, resource: { buffer: particles } }]),
       hdr: null,
       compositeGroup: null,
+      bright: postPipe("bright", SCENE_FORMAT),
+      blur: postPipe("blur", SCENE_FORMAT),
+      final: postPipe("composite", format),
+      sampler: device.createSampler({ magFilter: "linear", minFilter: "linear" }),
+      postU: [postBuf(), postBuf(), postBuf(), postBuf()],
+      post: null,
     };
   }
 
@@ -219,6 +267,51 @@ export class WebGPUBackend implements Backend {
     return g.hdr;
   }
 
+  private ensurePost(g: Gpu): PostTargets {
+    const { width: w, height: h } = this.canvas;
+    if (g.post && g.post.w === w && g.post.h === h) return g.post;
+    const tex = (tw: number, th: number) =>
+      g.device.createTexture({
+        size: [tw, th],
+        format: SCENE_FORMAT,
+        usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+      });
+    g.post?.scene.forEach((t) => t.destroy());
+    g.post?.bloom.forEach((t) => t.destroy());
+    const scene: [GPUTexture, GPUTexture] = [tex(w, h), tex(w, h)];
+    const bw = Math.max(1, w >> 2);
+    const bh = Math.max(1, h >> 2);
+    const bloom: [GPUTexture, GPUTexture] = [tex(bw, bh), tex(bw, bh)];
+    const group = (p: GPURenderPipeline, u: GPUBuffer, t: Record<number, GPUTexture>) =>
+      g.device.createBindGroup({
+        layout: p.getBindGroupLayout(0),
+        entries: [
+          { binding: 0, resource: { buffer: u } },
+          { binding: 1, resource: g.sampler },
+          ...Object.entries(t).map(([b, tx]) => ({
+            binding: Number(b),
+            resource: tx.createView(),
+          })),
+        ],
+      });
+    const [cur, prev] = scene;
+    const [uB, uH, uV, uF] = g.postU;
+    g.post = {
+      w,
+      h,
+      scene,
+      bloom,
+      // texA is the outgoing mode, texB the incoming one; mix runs 0 -> 1.
+      brightSame: group(g.bright, uB, { 2: cur, 3: cur }),
+      brightFade: group(g.bright, uB, { 2: prev, 3: cur }),
+      blurH: group(g.blur, uH, { 2: bloom[0] }),
+      blurV: group(g.blur, uV, { 2: bloom[1] }),
+      finalSame: group(g.final, uF, { 2: cur, 3: cur, 4: bloom[0] }),
+      finalFade: group(g.final, uF, { 2: prev, 3: cur, 4: bloom[0] }),
+    };
+    return g.post;
+  }
+
   private writeUniforms(g: Gpu, s: VisualState, count: number): void {
     const u = this.u;
     const d = s.features.data;
@@ -236,7 +329,7 @@ export class WebGPUBackend implements Backend {
     u[9] = s.flash;
     u[10] = d[F.centroidNorm]!;
     u[11] = s.settings.intensity * (s.settings.reducedMotion ? 0.35 : 1);
-    u[12] = s.settings.grain ? 1 : 0;
+    u[12] = 0; // grain is applied once, in the post pass
     u[13] = s.settings.seed;
     u[14] = s.onsetAge;
     u[15] = s.settings.reducedMotion ? 0 : 1;
@@ -249,23 +342,56 @@ export class WebGPUBackend implements Backend {
     u.set([...s.palette.c, 0], 28);
     u.set([...s.palette.d, 0], 32);
     u.set(d.subarray(F.mel, F.mel + MEL_BANDS), 36);
+    u[100] = s.camZoom;
+    u[101] = s.camRoll;
+    u.set(d.subarray(F.chroma, F.chroma + 12), 104);
+    u[116] = d[F.key]!;
     g.device.queue.writeBuffer(g.uniforms, 0, u);
   }
 
   draw(s: VisualState): void {
     const g = this.gpu;
     if (!g || this._lost) return;
-    const nebula = s.settings.mode === "nebula";
-    const count = nebula
+    const fading = s.prevMode !== null && s.mix < 1;
+    const usesNebula = s.settings.mode === "nebula" || (fading && s.prevMode === "nebula");
+    const count = usesNebula
       ? Math.max(
           1,
           Math.round(Math.min(WEBGPU_MAX_PARTICLES, s.settings.particles) * s.particleFraction),
         )
       : 0;
     this.writeUniforms(g, s, count);
+    const post = this.ensurePost(g);
+    const w = this.canvas.width;
+    const h = this.canvas.height;
+    const aberration =
+      s.settings.aberration && !s.settings.reducedMotion
+        ? 0.012 * s.beatPulse * s.settings.intensity
+        : 0;
+    const mix = fading ? s.mix : 1;
+    const P = (dir: [number, number] = [0, 0]) =>
+      new Float32Array([
+        mix,
+        s.settings.bloom ? 0.9 : 0,
+        aberration,
+        s.settings.grain ? 1 : 0,
+        s.time,
+        s.settings.seed,
+        1 / w,
+        1 / h,
+        dir[0],
+        dir[1],
+        0,
+        0,
+      ]);
+    const q = g.device.queue;
+    q.writeBuffer(g.postU[0], 0, P());
+    q.writeBuffer(g.postU[1], 0, P([1 / (w >> 2 || 1), 0]));
+    q.writeBuffer(g.postU[2], 0, P([0, 1 / (h >> 2 || 1)]));
+    q.writeBuffer(g.postU[3], 0, P());
+
     const enc = g.device.createCommandEncoder();
     const texture = g.context.getCurrentTexture();
-    const view = texture.createView();
     const pass = (target: GPUTextureView) =>
       enc.beginRenderPass({
         colorAttachments: [
@@ -277,31 +403,52 @@ export class WebGPUBackend implements Backend {
           },
         ],
       });
+    const fullscreen = (
+      target: GPUTextureView,
+      pipe: GPURenderPipeline,
+      groupForPass: GPUBindGroup,
+    ) => {
+      const rp = pass(target);
+      rp.setPipeline(pipe);
+      rp.setBindGroup(0, groupForPass);
+      rp.draw(3);
+      rp.end();
+    };
 
-    if (nebula) {
+    if (usesNebula) {
       const cp = enc.beginComputePass();
       cp.setPipeline(g.simulate);
       cp.setBindGroup(0, g.simGroup);
       cp.dispatchWorkgroups(Math.ceil(count / 256));
       cp.end();
-      const hdr = this.ensureHdr(g);
-      const rp = pass(hdr.createView());
-      rp.setPipeline(g.draw);
-      rp.setBindGroup(0, g.drawGroup);
-      rp.draw(6, count);
-      rp.end();
-      const cp2 = pass(view);
-      cp2.setPipeline(g.composite);
-      cp2.setBindGroup(0, g.compositeGroup!);
-      cp2.draw(3);
-      cp2.end();
-    } else {
-      const rp = pass(view);
-      rp.setPipeline(s.settings.mode === "calibrate" ? g.calibrate : g.tunnel);
-      rp.setBindGroup(0, s.settings.mode === "calibrate" ? g.calibrateGroup : g.tunnelGroup);
-      rp.draw(3);
-      rp.end();
     }
+    const drawMode = (mode: ModeId, target: GPUTextureView) => {
+      if (mode === "nebula") {
+        const hdr = this.ensureHdr(g);
+        const rp = pass(hdr.createView());
+        rp.setPipeline(g.draw);
+        rp.setBindGroup(0, g.drawGroup);
+        rp.draw(6, count);
+        rp.end();
+        fullscreen(target, g.composite, g.compositeGroup!);
+      } else if (mode === "bloom") {
+        fullscreen(target, g.chromaBloom, g.chromaGroup);
+      } else if (mode === "calibrate") {
+        fullscreen(target, g.calibrate, g.calibrateGroup);
+      } else {
+        fullscreen(target, g.tunnel, g.tunnelGroup);
+      }
+    };
+    drawMode(s.settings.mode, post.scene[0].createView());
+    if (fading) drawMode(s.prevMode!, post.scene[1].createView());
+
+    if (s.settings.bloom) {
+      fullscreen(post.bloom[0].createView(), g.bright, fading ? post.brightFade : post.brightSame);
+      fullscreen(post.bloom[1].createView(), g.blur, post.blurH);
+      fullscreen(post.bloom[0].createView(), g.blur, post.blurV);
+    }
+    fullscreen(texture.createView(), g.final, fading ? post.finalFade : post.finalSame);
+
     let readback: GPUBuffer | null = null;
     const bytesPerRow = Math.ceil((texture.width * 4) / 256) * 256;
     if (this.probeWaiters.length) {
@@ -343,6 +490,8 @@ export class WebGPUBackend implements Backend {
   dispose(): void {
     this.disposed = true;
     this.gpu?.hdr?.destroy();
+    this.gpu?.post?.scene.forEach((t) => t.destroy());
+    this.gpu?.post?.bloom.forEach((t) => t.destroy());
     this.gpu?.particles.destroy();
     this.gpu?.uniforms.destroy();
     this.gpu?.device.destroy();

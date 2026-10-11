@@ -19,6 +19,8 @@ uniform float uCentroid;
 uniform float uIntensity;
 uniform float uGrain;
 uniform float uSeed;
+uniform float uZoom;
+uniform float uRoll;
 uniform vec3 uPa;
 uniform vec3 uPb;
 uniform vec3 uPc;
@@ -47,6 +49,8 @@ void main() {
   vec2 p = (gl_FragCoord.xy - 0.5 * uRes) / uRes.y;
   float k = uIntensity;
 
+  // Beat camera (RD-9): push in and roll.
+  p = mat2(cos(uRoll), -sin(uRoll), sin(uRoll), cos(uRoll)) * p / uZoom;
   // A slow drift of the vanishing point, scaled down under reduced motion.
   p += 0.035 * k * vec2(sin(uTime * 0.21), cos(uTime * 0.17));
 
@@ -66,7 +70,9 @@ void main() {
 
   // Longitudinal ribs: 24 around the circumference, twisting gently with depth. Antialiased
   // with fwidth so they stay hairlines at any resolution.
-  float ribCoord = th / PI * 12.0 + 0.15 * zz;
+  // Measured on the mirrored angle u: th wraps at the top (+-PI), and fwidth across that jump
+  // drew a bright seam.
+  float ribCoord = u * 12.0 + 0.15 * zz;
   float rib = abs(fract(ribCoord) - 0.5);
   float ribW = fwidth(ribCoord) * 1.2;
   float ribs = smoothstep(0.5 - ribW, 0.5, rib);

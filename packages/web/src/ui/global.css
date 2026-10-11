@@ -727,3 +727,44 @@ input[type="checkbox"][role="switch"]:checked::after {
   stroke: rgba(232, 230, 223, 0.25);
   stroke-width: 1;
 }
+
+/* Shortcut sheet (UI-4) */
+
+.shortcuts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 20px;
+  margin: 12px 0 0;
+}
+
+.shortcuts div {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.shortcuts dt {
+  min-width: 52px;
+}
+
+.shortcuts dd {
+  margin: 0;
+  color: var(--text-dim);
+}
+
+kbd {
+  display: inline-block;
+  min-width: 22px;
+  padding: 1px 6px;
+  border: 1px solid var(--rule-strong);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  text-align: center;
+  color: var(--text);
+}
+
+.panel-foot {
+  margin-top: 16px;
+}

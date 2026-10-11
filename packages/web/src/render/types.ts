@@ -59,6 +59,12 @@ export interface VisualState {
   beatPulse: number;
   /** Position within the current beat, 0..1 (from the offline grid or the live tracker). */
   beatPhase: number;
+  /** Beat-synced camera (RD-9): zoom factor (1 = none) and roll in radians. Off under reduced motion. */
+  camZoom: number;
+  camRoll: number;
+  /** Crossfade (RD-7): the mode being faded out, and progress 0..1 toward `settings.mode`. */
+  prevMode: ModeId | null;
+  mix: number;
   palette: Palette;
   settings: RenderSettings;
   /** Device-pixel scale after adaptive quality. */

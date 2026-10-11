@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { detectCapabilities } from "../audio/capabilities";
 import { flags, playFile } from "../app/controller";
 import { loadWarningAccepted } from "../app/persist";
+import { decodeSettings } from "../app/urlSettings";
 import { DEFAULT_APP_SETTINGS, setApp, setUi, useApp } from "../app/store";
 import { CapabilityNotice, CapabilityPill } from "./CapabilityBanner";
 import { DebugOverlay } from "./DebugOverlay";
@@ -10,6 +11,7 @@ import { ErrorNotice, SilentHint } from "./Notices";
 import { PhotosensitivityGate } from "./PhotosensitivityGate";
 import { SettingsPanel } from "./SettingsPanel";
 import { SourcePicker } from "./SourcePicker";
+import { HelpSheet } from "./HelpSheet";
 import { Stage } from "./Stage";
 import { Transport } from "./Transport";
 import { useChrome } from "./useChrome";
@@ -21,6 +23,7 @@ function init() {
     settings: {
       ...DEFAULT_APP_SETTINGS,
       reducedMotion: caps.reducedMotion,
+      ...decodeSettings(location.hash),
       ...(flags.calibrate ? { mode: "calibrate" as const, reducedMotion: false } : {}),
     },
   });
@@ -92,6 +95,7 @@ export function App() {
         <SettingsPanel />
         <Transport />
       </div>
+      <HelpSheet />
       <PhotosensitivityGate />
     </div>
   );

@@ -40,6 +40,31 @@ test.describe("visual regression", () => {
     });
   });
 
+  test("chroma bloom at 12s of groove-120 (C major)", async ({ page }) => {
+    await openCapture(page, { src: "/audio/fixtures/groove-120.wav", mode: "bloom" });
+    await renderAt(page, 12.0);
+    await expect(page.locator("#c")).toHaveScreenshot("bloom-groove-12.png", {
+      maxDiffPixelRatio: 0.01,
+      threshold: 0.15,
+    });
+  });
+
+  test("crossfade between modes is deterministic (RD-7)", async ({ page }) => {
+    await openCapture(page, { src: "/audio/fixtures/groove-120.wav" });
+    await renderAt(page, 6.0);
+    await page.evaluate(async () => {
+      const c = await (
+        globalThis as unknown as { __capture: Promise<{ setTheme(id: string): void }> }
+      ).__capture;
+      c.setTheme("nebula:ember");
+    });
+    await renderAt(page, 6.4); // halfway through the 0.8 s fade
+    await expect(page.locator("#c")).toHaveScreenshot("crossfade-tunnel-nebula.png", {
+      maxDiffPixelRatio: 0.01,
+      threshold: 0.15,
+    });
+  });
+
   test("themes and reduced motion render distinctly", async ({ page }) => {
     await openCapture(page, {
       src: "/audio/fixtures/groove-120.wav",

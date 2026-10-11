@@ -59,9 +59,9 @@ Source of truth: [`PRD.md`](../PRD.md). Requirement IDs and priorities (P0/P1/P2
 - [x] **M11 WebGPU.** RD-2, RD-5, RD-12. WebGPU backend, Particle Nebula, device and context loss.
 - [x] **M12 Musical analysis.** DSP-7 to DSP-9, the IN-5 timeline, PRD §9.2. Beat tracker,
       chroma and key, offline analysis worker, seek-bar timeline, accuracy eval.
-- [ ] **M13 Polish (P1).** RD-7 to RD-9, UI-4. Post-FX, crossfades, beat camera, shortcuts and
+- [x] **M13 Polish (P1).** RD-7 to RD-9, UI-4. Post-FX, crossfades, beat camera, shortcuts and
       `?` sheet, URL-hash settings.
-- [ ] **M14 Chroma Bloom (P2).** RD-6, then refresh README numbers, screenshots, and GIF.
+- [x] **M14 Chroma Bloom (P2).** RD-6, then refresh README numbers, screenshots, and GIF.
 
 ## How each milestone is verified
 
@@ -226,3 +226,11 @@ Real problems hit during the build and how they were solved. Source for the READ
 - **Chroma heard the kick drum as C♯.** Low FFT bins are wider than a semitone, and kick energy
   around 70 Hz mapped to C♯ in every frame, so a C-major groove came out as B♭ minor. Chroma now
   starts at 200 Hz.
+- **A seam bloom made visible.** The tunnel's ribs were antialiased with `fwidth` on an angle that
+  wraps at ±π, so the derivative spiked along one line at the top of the screen. It was faint until
+  bloom picked it up as a bright dashed line. Measuring ribs on the mirrored angle (no wrap) fixed
+  it in both the GLSL and WGSL versions.
+- **Post-processing on both backends.** WebGPU is the default renderer on desktop Chrome, so
+  doing bloom and crossfades only on WebGL2 would have hidden them from most visitors. Both
+  backends render each mode into a scene texture and share the same bright-pass, separable blur,
+  and composite (crossfade, bloom, beat-triggered chromatic aberration, grain).

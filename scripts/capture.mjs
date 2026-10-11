@@ -53,6 +53,7 @@ const stills = [
   { name: "tunnel-aurora", theme: "aurora", t: 131.2 },
   { name: "nebula-ember", theme: "ember", t: 75.0, mode: "nebula" },
   { name: "nebula-tide", theme: "tide", t: 112.0, mode: "nebula" },
+  { name: "chroma-bloom-key", theme: "key", t: 90.0, mode: "bloom" },
 ];
 for (const s of stills) {
   const c = await capturePage({ w: 1600, h: 900, theme: s.theme, mode: s.mode });
@@ -76,6 +77,7 @@ for (const s of stills) {
     { mode: "nebula", theme: "ember" },
     { mode: "tunnel", theme: "tide" },
     { mode: "nebula", theme: "aurora" },
+    { mode: "bloom", theme: "key" },
   ];
   const themes = segments.map((x) => `${x.mode}:${x.theme}`);
   const frames = 10 * fps;

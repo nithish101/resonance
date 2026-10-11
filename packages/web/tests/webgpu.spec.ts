@@ -63,6 +63,16 @@ test.describe("WebGPU renderer (RD-2, RD-5, RD-12)", () => {
     expect(lum.std).toBeGreaterThan(5);
   });
 
+  test("draws Chroma Bloom", async ({ page }) => {
+    await page.goto("/");
+    await expect.poll(async () => (await renderState(page)).renderer?.backend).toBe("webgpu");
+    await page.getByTestId("track-deep-house-soul").click();
+    await setMode(page, "bloom");
+    await expect.poll(async () => (await state(page)).dsp?.hops ?? 0).toBeGreaterThan(200);
+    const lum = await frame(page);
+    expect(lum.lit).toBeGreaterThan(0.002);
+  });
+
   test("recovers from a lost device without reloading", async ({ page }) => {
     await page.goto("/");
     await expect.poll(async () => (await renderState(page)).renderer?.backend).toBe("webgpu");

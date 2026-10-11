@@ -5,6 +5,8 @@ import { AppErrorException, appError, toAppError, type AppError } from "../audio
 import { CALIBRATION_TRACK, TRACKS } from "../audio/tracks";
 import { ClockBuffer, createClockSample } from "../lib/clock";
 import { analyzeFile } from "../audio/offline";
+import { KEY_THEME, PALETTES } from "../render/palettes";
+import { encodeSettings } from "./urlSettings";
 import { frameSourceFor, type RenderHost } from "./renderHost";
 import { setApp, setPlayback, useApp, type Settings, type SourceInfo } from "./store";
 
@@ -78,6 +80,35 @@ export function updateSettings(patch: Partial<Settings>): void {
   setApp({ settings });
   renderHost?.setSettings(settings);
   engine?.setDspParams(settings.sensitivity, settings.smoothing);
+  // Keep the URL shareable (UI-4) without adding history entries.
+  if (!flags.calibrate && typeof history !== "undefined") {
+    const hash = encodeSettings(settings);
+    const url = `${location.pathname}${location.search}${hash ? `#${hash}` : ""}`;
+    history.replaceState(null, "", url);
+  }
+}
+
+/** Cycles to the next mode or theme (keyboard shortcuts M and T). */
+export function cycle(what: "mode" | "theme"): void {
+  const s = useApp.getState().settings;
+  if (what === "mode") {
+    const modes = ["tunnel", "nebula", "bloom"] as const;
+    updateSettings({
+      mode: modes[(modes.indexOf(s.mode as (typeof modes)[number]) + 1) % modes.length]!,
+    });
+  } else {
+    const themes = [...PALETTES.map((p) => p.id), KEY_THEME.id];
+    updateSettings({ theme: themes[(themes.indexOf(s.theme) + 1) % themes.length]! });
+  }
+}
+
+export function nudgeVolume(delta: number): void {
+  setVolume(Math.max(0, Math.min(1, useApp.getState().playback.volume + delta)));
+}
+
+export function nudgeSeek(delta: number): void {
+  const m = engine?.media;
+  if (m) seek(m.currentTime + delta);
 }
 let starting: Promise<AudioEngine> | null = null;
 let silentSince = 0;

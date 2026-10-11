@@ -65,6 +65,8 @@ export interface UiState {
   warningAccepted: boolean;
   /** The capability notice has been dismissed for this session. */
   bannerDismissed: boolean;
+  /** Keyboard shortcut sheet (UI-4). */
+  helpOpen: boolean;
 }
 
 /** Everything user-adjustable (UI-2). Analysis params go to the DSP worker, the rest to the renderer. */
@@ -100,6 +102,7 @@ export const initialState: AppState = {
     chromeHidden: false,
     warningAccepted: false,
     bannerDismissed: false,
+    helpOpen: false,
   },
 };
 

@@ -59,6 +59,9 @@ export class RenderCore {
   private haveBeats = false;
   private onsetPulse = 0;
   private paletteKey = -2;
+  private fadeStart = -1;
+  private camKick = 0;
+  private beatsSeen = 0;
 
   constructor(
     private readonly backend: Backend,
@@ -77,6 +80,10 @@ export class RenderCore {
       onsetAge: 99,
       beatPulse: 0,
       beatPhase: 0,
+      camZoom: 1,
+      camRoll: 0,
+      prevMode: null,
+      mix: 1,
       palette: paletteById(settings.theme),
       settings,
       scale: 1,
@@ -95,6 +102,11 @@ export class RenderCore {
   }
 
   setSettings(s: RenderSettings): void {
+    // A mode change starts a crossfade, timed in audio time so capture mode stays deterministic.
+    if (s.mode !== this.state.settings.mode) {
+      this.state.prevMode = this.state.settings.mode;
+      this.fadeStart = this.lastTime;
+    }
     this.state.settings = s;
     this.state.palette = paletteById(s.theme);
     this.paletteKey = -2;
@@ -146,6 +158,25 @@ export class RenderCore {
     }
     this.onsetPulse = f.onset ? 1 : this.onsetPulse * Math.exp(-dt / 0.16);
     s.pulse = Math.max(this.onsetPulse, 0.8 * s.beatPulse);
+    // Beat camera (RD-9): a small push-in on each beat and a slow roll that swings with the
+    // beat phase. Disabled under reduced motion (AX-3).
+    if (beat) this.camKick = 1;
+    this.camKick *= Math.exp(-dt / 0.12);
+    const cam = s.settings.reducedMotion ? 0 : s.settings.intensity;
+    s.camZoom = 1 + 0.045 * this.camKick * cam;
+    s.camRoll =
+      cam *
+      (0.035 * Math.sin(time * 0.37) +
+        0.012 * Math.sin((2 * Math.PI * (s.beatPhase + this.beatsSeen)) / 2));
+    if (beat) this.beatsSeen = (this.beatsSeen + 1) % 2;
+
+    // Crossfade progress (RD-7).
+    if (s.prevMode) {
+      const p = this.fadeStart < 0 ? 1 : (time - this.fadeStart) / 0.8;
+      s.mix = Math.min(1, Math.max(0, p));
+      if (s.mix >= 1) s.prevMode = null;
+    } else s.mix = 1;
+
     // The shockwave follows the beat once beats are known, onsets before that.
     const kick = this.haveBeats ? beat : f.onset;
     s.onsetAge = kick ? 0 : s.onsetAge + dt;

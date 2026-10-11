@@ -8,7 +8,7 @@ measured for speed and accuracy.
 [![Deploy](https://github.com/nithish101/resonance/actions/workflows/deploy.yml/badge.svg)](https://github.com/nithish101/resonance/actions/workflows/deploy.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey.svg)](LICENSE)
 
-![Spectral Tunnel reacting to "Deep House Soul" by Play House, cycling three colour themes](docs/screenshots/hero.gif)
+![Spectral Tunnel, Particle Nebula, and Chroma Bloom reacting to "Deep House Soul" by Play House](docs/screenshots/hero.gif)
 
 **Live demo:** not deployed yet. The AWS stack and CD pipeline are ready ([docs/deploy.md](docs/deploy.md)).
 Run it locally in three commands (below). Try it with your own song, or play YouTube Music in
@@ -16,8 +16,8 @@ another tab and visualize that. Audio never leaves your browser.
 
 ## Highlights
 
-- **Hand-written FFT and analysis in Rust/WASM: 15 µs per hop in the browser** (mean, SIMD
-  build), 0.14% of the 10.7 ms real-time budget, with zero heap allocations per hop (enforced by
+- **Hand-written FFT and analysis in Rust/WASM: 8.6 µs per hop in the browser** (mean, SIMD
+  build), 0.08% of the 10.7 ms real-time budget, with zero heap allocations per hop (enforced by
   a counting-allocator test). The radix-2 FFT matches `rustfft` to within 1e-4 at every size from
   2 to 16384.
 - **Lock-free pipeline across four threads.** The AudioWorklet writes a SharedArrayBuffer ring;
@@ -25,7 +25,8 @@ another tab and visualize that. Audio never leaves your browser.
   OffscreenCanvas worker. **0 ring overruns and 0 main-thread long tasks over a 10-minute
   playback soak.**
 - **60 FPS at 1080p** (frame interval p95 16.7 ms over 60 s) on an Apple M5, WebGL2 in a render
-  worker, with adaptive quality that never had to step down.
+  worker with bloom and the rest of the post chain on, and **500k particles simulated in a
+  WebGPU compute shader at 59 FPS**. Adaptive quality never had to step down.
 - **Visuals synced to what you hear, not what was captured.** Files play through a 100 ms
   lookahead and the renderer targets the audio output clock (`getOutputTimestamp`). Live input
   from a mic, another tab, or the whole system runs at minimum latency.
@@ -33,20 +34,22 @@ another tab and visualize that. Audio never leaves your browser.
   (±70 ms); tempo Acc1 14/14 with no octave errors from 70 to 174 BPM; beat F 0.99 for the
   live phase-locked tracker and 1.000 for the offline dynamic-programming grid on humanized
   grooves. The mel filterbank matches librosa weight for weight.
-- **Shipped like a product:** 104 KB gzipped (JS + CSS + WASM), Lighthouse 100/100/100, zero axe
+- **Shipped like a product:** 132 KB gzipped (JS + CSS + WASM), Lighthouse 100/100/100, zero axe
   violations, 46 e2e tests including visual regression and measured WCAG flash limits, and AWS
   CDK with GitHub OIDC deploys.
 
 ## Screenshots
 
-|                                                                                                    |                                                                                     |
-| -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| ![Spectral Tunnel, Ember theme](docs/screenshots/tunnel-ember.png)                                 | ![Spectral Tunnel, Tide theme](docs/screenshots/tunnel-tide.png)                    |
-| Spectral Tunnel, Ember                                                                             | Spectral Tunnel, Tide                                                               |
-| ![Debug overlay with live timings, spectrum and onset plots](docs/screenshots/debug-overlay.png)   | ![Settings panel](docs/screenshots/settings.png)                                    |
-| Debug overlay (`D`): real readings                                                                 | Settings (`S`)                                                                      |
-| ![Start screen with bundled tracks, file, tab and microphone sources](docs/screenshots/picker.png) | ![Compatibility banner explaining a fallback](docs/screenshots/fallback-banner.png) |
-| Start screen                                                                                       | Fallback banner (main-thread rendering, postMessage transport)                      |
+|                                                                                                    |                                                                                       |
+| -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| ![Spectral Tunnel, Ember theme](docs/screenshots/tunnel-ember.png)                                 | ![Spectral Tunnel, Tide theme](docs/screenshots/tunnel-tide.png)                      |
+| Spectral Tunnel, Ember                                                                             | Spectral Tunnel, Tide                                                                 |
+| ![Particle Nebula, 500k particles](docs/screenshots/nebula-ember.png)                              | ![Chroma Bloom with the key-following palette](docs/screenshots/chroma-bloom-key.png) |
+| Particle Nebula (GPU-simulated on WebGPU)                                                          | Chroma Bloom, following the key                                                       |
+| ![Debug overlay with live timings, spectrum and onset plots](docs/screenshots/debug-overlay.png)   | ![Settings panel](docs/screenshots/settings.png)                                      |
+| Debug overlay (`D`): real readings                                                                 | Settings (`S`)                                                                        |
+| ![Start screen with bundled tracks, file, tab and microphone sources](docs/screenshots/picker.png) | ![Compatibility banner explaining a fallback](docs/screenshots/fallback-banner.png)   |
+| Start screen                                                                                       | Fallback banner (main-thread rendering, postMessage transport)                        |
 
 Every image is generated by `pnpm capture` from deterministic capture mode or the live app
 ([how](docs/screenshots/README.md)). Nothing is hand-edited.
@@ -83,18 +86,19 @@ Full details: [docs/architecture.md](docs/architecture.md), [docs/latency.md](do
 From `pnpm bench` on an Apple M5 (16 GB), Chromium 156 with ANGLE on Metal. Full report,
 including methodology and the native numbers: [docs/benchmarks.md](docs/benchmarks.md).
 
-| Metric                                            | Target     | Measured                                                                                    |
-| ------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------- |
-| Frame rate, 1080p Spectral Tunnel (WebGL2 worker) | 60 FPS     | 60.0 FPS, interval p95 16.7 ms                                                              |
-| DSP time per hop (WASM)                           | p95 < 1 ms | 30 µs p95 (SIMD), 65 µs (scalar)                                                            |
-| A/V sync error, file mode                         | ±15 ms     | 0.0 ms p95 in software ([what that means](docs/latency.md#what-this-does-and-doesnt-prove)) |
-| Input latency, live mode (estimate)               | < 50 ms    | 35.3 ms (1024/256 STFT for live input)                                                      |
-| Main-thread long tasks during playback            | 0          | 0 (10-minute soak)                                                                          |
-| Ring-buffer overruns, 10 minutes                  | 0          | 0                                                                                           |
-| JS + WASM, gzipped                                | < 350 KB   | 104.2 KB                                                                                    |
-| Largest Contentful Paint / Total Blocking Time    | TTI < 2 s  | 327 ms / 0 ms (Lighthouse desktop)                                                          |
-| Memory, 10-minute playback                        | < 300 MB   | 4.6 MB JS/DOM/ArrayBuffers across page and workers (excludes GPU and media buffers)         |
-| FFT 2048, native, vs rustfft                      |            | 6.3 µs vs 3.1 µs                                                                            |
+| Metric                                                  | Target     | Measured                                                                                    |
+| ------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------- |
+| Frame rate, 1080p Spectral Tunnel (WebGL2 worker)       | 60 FPS     | 60.0 FPS, interval p95 16.7 ms                                                              |
+| Particle Nebula, 500k particles (WebGPU compute), 1080p | 60 FPS     | 59.2 FPS, interval p95 16.7 ms                                                              |
+| DSP time per hop (WASM)                                 | p95 < 1 ms | 15 µs p95 (SIMD), 20 µs (scalar)                                                            |
+| A/V sync error, file mode                               | ±15 ms     | 0.0 ms p95 in software ([what that means](docs/latency.md#what-this-does-and-doesnt-prove)) |
+| Input latency, live mode (estimate)                     | < 50 ms    | 35.1 ms (1024/256 STFT for live input)                                                      |
+| Main-thread long tasks during playback                  | 0          | 0 (10-minute soak)                                                                          |
+| Ring-buffer overruns, 10 minutes                        | 0          | 0                                                                                           |
+| JS + WASM, gzipped                                      | < 350 KB   | 132.4 KB                                                                                    |
+| Largest Contentful Paint / Total Blocking Time          | TTI < 2 s  | 330 ms / 0 ms (Lighthouse desktop)                                                          |
+| Memory, 10-minute playback                              | < 300 MB   | 5.3 MB JS/DOM/ArrayBuffers across page and workers (excludes GPU and media buffers)         |
+| FFT 2048, native, vs rustfft                            |            | 5.2 µs vs 2.6 µs                                                                            |
 
 ## Accuracy
 
@@ -134,10 +138,13 @@ key, and an energy envelope), so the seek bar shows the track's shape and the vi
 beats instead of reacting to them.
 
 The Spectral Tunnel wraps the mel spectrum around the tunnel walls, drives forward motion from
-loudness, and pulses on beats and onsets through a WCAG flash limiter. The Particle Nebula is a
+loudness, and pulses on beats and onsets through a WCAG flash limiter. Modes crossfade into each
+other, the camera pushes in on the beat, and a shared post-processing chain adds bloom,
+beat-triggered chromatic aberration, and film grain, each toggleable. The Particle Nebula is a
 three-arm spiral: on WebGPU, a compute shader simulates up to a million particles springing
 toward their orbits while bass, beat shockwaves, and treble push them around; on WebGL2 a
-stateless version draws up to 150k. The maths, the parameters, and how
+stateless version draws up to 150k. Chroma Bloom arranges twelve pitch-class petals around the
+circle of fifths, sized by the live chroma, with the detected key's tonic lit brighter. The maths, the parameters, and how
 each piece is verified: [docs/dsp-notes.md](docs/dsp-notes.md). Frame layout:
 [docs/feature-frame.md](docs/feature-frame.md).
 
@@ -232,6 +239,12 @@ tests the production CSP. GitHub Actions deploys through OIDC with no stored AWS
 invalidates the CDN, and smoke-tests the live site. Within the AWS free tier for portfolio
 traffic. Setup steps: [docs/deploy.md](docs/deploy.md).
 
+## Keyboard
+
+`Space` play/pause · `←` `→` seek · `↑` `↓` volume · `M` next mode · `T` next theme ·
+`R` reduced motion · `S` settings · `D` debug overlay · `F` fullscreen · `?` all shortcuts.
+Settings live in the URL hash, so a link reproduces the look.
+
 ## Browser support
 
 | Browser                    | Experience                                                                                                                                                                                |
@@ -255,7 +268,6 @@ The capability pill and banner always show which renderer and transport are acti
 ## Known limitations
 
 - **No live demo yet.** It needs an AWS account; the stack and pipeline are ready.
-- **Screenshots and the hero GIF predate the Particle Nebula.** Rerun `pnpm capture` to include it.
 - **Real-music accuracy is unmeasured** until the bundled songs have hand-tapped annotations
   (the tool is at `/annotate.html` on the dev server; see eval/annotations/README.md).
   Published accuracy is on synthetic audio, an upper bound.

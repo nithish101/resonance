@@ -22,6 +22,8 @@ uniform float uIntensity;
 uniform float uAspect;
 uniform float uPointScale;
 uniform float uCentroid;
+uniform float uZoom;
+uniform float uRoll;
 uniform vec3 uPa;
 uniform vec3 uPb;
 uniform vec3 uPc;
@@ -75,12 +77,12 @@ void main() {
   p.xy += normalize(p.xy + 1e-5) * wave * 0.09 * k;
 
   // Camera: tilt the disk toward the viewer and yaw slowly.
-  float yaw = 0.07 * uTime;
+  float yaw = 0.07 * uTime + uRoll * 2.0;
   p.xy = mat2(cos(yaw), -sin(yaw), sin(yaw), cos(yaw)) * p.xy;
   float tilt = 1.05;
   p = vec3(p.x, p.y * cos(tilt) - p.z * sin(tilt), p.y * sin(tilt) + p.z * cos(tilt));
   float depth = 2.4 + p.z;
-  vec2 screen = p.xy / depth * 2.1;
+  vec2 screen = p.xy / depth * 2.1 * uZoom;
   gl_Position = vec4(screen.x / uAspect, screen.y, 0.0, 1.0);
 
   // Treble shimmer: per-particle flicker that changes 24 times a second.

@@ -425,6 +425,9 @@ export class AudioEngine {
       out.contextTime = ctx.currentTime - out.baseLatency - out.outputLatency;
       out.perfAbs = performance.timeOrigin + performance.now();
     }
+    const file = kind === "track" || kind === "file";
+    out.mediaTime = file ? this.media.currentTime : 0;
+    out.mediaRate = file && !this.media.paused ? this.media.playbackRate : 0;
     const track = this.stream?.getAudioTracks()[0];
     const latency = (track?.getSettings() as { latency?: number } | undefined)?.latency;
     out.inputLatency = typeof latency === "number" ? latency : 0;

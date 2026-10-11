@@ -695,3 +695,35 @@ input[type="checkbox"][role="switch"]:checked::after {
     justify-content: flex-end;
   }
 }
+
+/* Seek-bar timeline (IN-5, DSP-9) */
+
+.seek-track {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+
+.seek-track input[type="range"] {
+  position: relative;
+  width: 100%;
+}
+
+.timeline {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 9px;
+  width: calc(100% - 12px);
+  height: 14px;
+  pointer-events: none;
+}
+
+.timeline polygon {
+  fill: rgba(233, 184, 114, 0.22);
+}
+
+.timeline line {
+  stroke: rgba(232, 230, 223, 0.25);
+  stroke-width: 1;
+}

@@ -56,6 +56,7 @@ export default defineConfig({
             stress: "stress.html",
             capture: "capture.html",
             bench: "bench.html",
+            annotate: "annotate.html",
           }
         : { main: "index.html" },
     },

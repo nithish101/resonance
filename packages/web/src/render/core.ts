@@ -2,11 +2,12 @@
 // render worker and the main-thread fallback, and by capture mode (RD-11), so all three draw
 // identical pixels for the same audio.
 
-import { inputLatencyEstimate, type ClockSample } from "../lib/clock";
+import { beatPhaseAt } from "../lib/beats";
+import { audibleMediaTime, inputLatencyEstimate, type ClockSample } from "../lib/clock";
 import { F } from "../lib/frames";
 import { FlashLimiter } from "./flash";
 import { type FrameReader, type Features, createFeatures } from "./features";
-import { paletteById } from "./palettes";
+import { keyPalette, paletteById } from "./palettes";
 import { QualityController, RefreshEstimator } from "./quality";
 import type { Backend, RenderSettings, VisualState } from "./types";
 
@@ -51,6 +52,13 @@ export class RenderCore {
   private leads: number[] = [];
   private latencies: number[] = [];
   private mode = 0;
+  /** Offline beat grid (media seconds) for the current file, when analysed (DSP-9). */
+  private beats: number[] | null = null;
+  private lastGridBeat = -1;
+  private gridBeat = false;
+  private haveBeats = false;
+  private onsetPulse = 0;
+  private paletteKey = -2;
 
   constructor(
     private readonly backend: Backend,
@@ -67,11 +75,19 @@ export class RenderCore {
       flash: 0,
       bass: 0,
       onsetAge: 99,
+      beatPulse: 0,
+      beatPhase: 0,
       palette: paletteById(settings.theme),
       settings,
       scale: 1,
       particleFraction: 1,
     };
+  }
+
+  /** Offline beat grid for the playing file (media seconds), or null. */
+  setBeats(beats: number[] | null): void {
+    this.beats = beats && beats.length > 1 ? beats : null;
+    this.lastGridBeat = -1;
   }
 
   get settings(): RenderSettings {
@@ -81,6 +97,7 @@ export class RenderCore {
   setSettings(s: RenderSettings): void {
     this.state.settings = s;
     this.state.palette = paletteById(s.theme);
+    this.paletteKey = -2;
   }
 
   resize(cssW: number, cssH: number, dpr: number): void {
@@ -114,12 +131,28 @@ export class RenderCore {
     const bassNow = 0.6 * d[F.bands]! + 0.4 * d[F.bands + 1]!;
     s.bass += (bassNow - s.bass) * (1 - Math.exp(-dt / 0.06));
     s.travel += dt * (0.12 + 0.55 * d[F.loudness]! + 0.45 * s.bass) * (0.4 + 0.6 * intensity);
-    s.pulse = f.onset ? 1 : s.pulse * Math.exp(-dt / 0.16);
-    s.onsetAge = f.onset ? 0 : s.onsetAge + dt;
+    // Beats come from the offline grid (file mode, anticipating) or the live tracker's flags.
+    const beat = this.gridBeat || f.beat;
+    this.gridBeat = false;
+    if (beat) this.haveBeats = true;
+    s.beatPulse = beat ? 1 : s.beatPulse * Math.exp(-dt / 0.2);
+    s.beatPhase = d[F.beatPhase]!;
+    if (s.settings.theme === "key") {
+      const key = Math.round(d[F.key]!);
+      if (key !== this.paletteKey) {
+        this.paletteKey = key;
+        s.palette = keyPalette(key);
+      }
+    }
+    this.onsetPulse = f.onset ? 1 : this.onsetPulse * Math.exp(-dt / 0.16);
+    s.pulse = Math.max(this.onsetPulse, 0.8 * s.beatPulse);
+    // The shockwave follows the beat once beats are known, onsets before that.
+    const kick = this.haveBeats ? beat : f.onset;
+    s.onsetAge = kick ? 0 : s.onsetAge + dt;
     if (s.settings.mode === "calibrate") {
       // Camera check: a plain on/off square wave, exempt from intensity scaling. Clicks are 2 per
       // second, inside the 3-per-second flash limit, so the limiter never alters it.
-      s.flash = this.limiter.apply(s.pulse > 0.5 ? 1 : 0, time);
+      s.flash = this.limiter.apply(this.onsetPulse > 0.5 ? 1 : 0, time);
       s.time = time;
       s.dt = dt;
       return s;
@@ -142,6 +175,16 @@ export class RenderCore {
     const sr = this.reader?.sampleRate || 48_000;
     const time = this.features.valid ? this.features.time / sr : Math.max(0, this.lastTime);
     this.mode = clock?.mode ?? 0;
+    if (this.beats && clock && clock.mode === 1 && clock.mediaRate > 0) {
+      const bp = beatPhaseAt(this.beats, audibleMediaTime(clock, nowAbs));
+      if (bp) {
+        this.features.data[F.beatPhase] = bp.phase;
+        if (bp.index !== this.lastGridBeat) {
+          this.gridBeat = this.lastGridBeat >= 0; // not on the first lookup after a seek
+          this.lastGridBeat = bp.index;
+        }
+      }
+    }
     if (this.features.valid && clock) {
       if (target !== null) {
         this.syncErrors.push(((target - this.features.time) / sr) * 1000);
@@ -216,6 +259,7 @@ export class RenderCore {
 
   resetTimeline(): void {
     this.lastTime = -1;
+    this.haveBeats = false;
     this.limiter.reset();
     this.reader?.resetEvents();
   }

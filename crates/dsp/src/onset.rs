@@ -9,6 +9,10 @@ pub const MEDIAN_LEN: usize = 32;
 
 #[derive(Debug, Clone)]
 pub struct OnsetDetector {
+    /// Mel bands counted as "low" for the bass-weighted beat envelope (centres below 200 Hz).
+    low_bands: usize,
+    /// Mean positive rise over the low bands on the last update (dB).
+    pub low_flux: f32,
     prev: Vec<f32>,
     has_prev: bool,
     history: [f32; MEDIAN_LEN],
@@ -27,8 +31,10 @@ pub struct OnsetDetector {
 }
 
 impl OnsetDetector {
-    pub fn new(n_bands: usize, hop_rate_hz: f32, min_gap_secs: f32) -> Self {
+    pub fn new(n_bands: usize, low_bands: usize, hop_rate_hz: f32, min_gap_secs: f32) -> Self {
         Self {
+            low_bands: low_bands.clamp(1, n_bands),
+            low_flux: 0.0,
             prev: vec![0.0; n_bands],
             has_prev: false,
             history: [0.0; MEDIAN_LEN],
@@ -73,12 +79,19 @@ impl OnsetDetector {
     /// `allow` is false while the noise gate is closed (ER-4): flux is tracked, onsets aren't.
     pub fn update(&mut self, log_mel_db: &[f32], allow: bool) -> (f32, bool) {
         let mut flux = 0.0;
+        let mut low = 0.0;
         if self.has_prev {
-            for (cur, prev) in log_mel_db.iter().zip(&self.prev) {
-                flux += (cur - prev).max(0.0);
+            for (b, (cur, prev)) in log_mel_db.iter().zip(&self.prev).enumerate() {
+                let rise = (cur - prev).max(0.0);
+                flux += rise;
+                if b < self.low_bands {
+                    low += rise;
+                }
             }
             flux /= log_mel_db.len() as f32;
+            low /= self.low_bands as f32;
         }
+        self.low_flux = low;
         self.prev.copy_from_slice(log_mel_db);
         self.has_prev = true;
 

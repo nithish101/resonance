@@ -7,6 +7,9 @@
 //! ([`frame`]). See docs/dsp-notes.md for the maths and the reasoning behind each parameter.
 
 pub mod analyzer;
+pub mod beat;
+pub mod beatgrid;
+pub mod chroma;
 pub mod complex;
 pub mod envelope;
 pub mod eval;
@@ -22,4 +25,4 @@ pub use analyzer::{Analyzer, Config};
 pub use complex::Complex;
 
 /// Version of the feature-frame layout. Bump on any change to [`frame`].
-pub const FRAME_SCHEMA_VERSION: u32 = 1;
+pub const FRAME_SCHEMA_VERSION: u32 = 2;

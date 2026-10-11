@@ -4,6 +4,7 @@ import { AudioEngine } from "../audio/engine";
 import { AppErrorException, appError, toAppError, type AppError } from "../audio/errors";
 import { CALIBRATION_TRACK, TRACKS } from "../audio/tracks";
 import { ClockBuffer, createClockSample } from "../lib/clock";
+import { analyzeFile } from "../audio/offline";
 import { frameSourceFor, type RenderHost } from "./renderHost";
 import { setApp, setPlayback, useApp, type Settings, type SourceInfo } from "./store";
 
@@ -161,19 +162,62 @@ async function open(source: SourceInfo, run: (e: AudioEngine) => Promise<void>):
   }
 }
 
+let analysisToken = 0;
+
+/**
+ * Starts whole-file analysis (DSP-9) in the background: beat grid, key, and energy timeline.
+ * Playback doesn't wait for it. A newer source cancels the older result.
+ */
+function analyseInBackground(bytes: () => Promise<ArrayBuffer>): void {
+  const token = ++analysisToken;
+  setApp({ timeline: { status: "analysing", bpm: 0, key: -1, beats: [], energy: [], ms: 0 } });
+  renderHost?.setBeats(null);
+  bytes()
+    .then((b) => analyzeFile(b))
+    .then((r) => {
+      if (token !== analysisToken) return;
+      setApp({
+        timeline: {
+          status: "ready",
+          bpm: r.bpm,
+          key: r.key,
+          beats: r.beats,
+          energy: r.energy,
+          ms: r.ms,
+        },
+      });
+      renderHost?.setBeats(r.beats);
+    })
+    .catch(() => {
+      if (token === analysisToken)
+        setApp({ timeline: { status: "failed", bpm: 0, key: -1, beats: [], energy: [], ms: 0 } });
+    });
+}
+
+function clearTimeline(): void {
+  analysisToken++;
+  setApp({ timeline: null });
+  renderHost?.setBeats(null);
+}
+
 export function playTrack(id: string): Promise<void> {
   const t = [...TRACKS, CALIBRATION_TRACK].find((x) => x.id === id);
   if (!t) return Promise.resolve();
-  return open({ kind: "track", label: `${t.title} — ${t.artist}`, trackId: t.id }, (e) =>
-    e.playUrl(t.url),
-  );
+  return open({ kind: "track", label: `${t.title} — ${t.artist}`, trackId: t.id }, async (e) => {
+    await e.playUrl(t.url);
+    analyseInBackground(() => fetch(t.url).then((r) => r.arrayBuffer()));
+  });
 }
 
 export function playFile(file: File): Promise<void> {
-  return open({ kind: "file", label: file.name }, (e) => e.playFile(file));
+  return open({ kind: "file", label: file.name }, async (e) => {
+    await e.playFile(file);
+    analyseInBackground(() => file.arrayBuffer());
+  });
 }
 
 export function startMic(deviceId?: string, label = "Microphone"): Promise<void> {
+  clearTimeline();
   return open({ kind: "mic", label }, (e) => e.startMic(deviceId));
 }
 
@@ -182,11 +226,13 @@ export function startTab(): Promise<void> {
     setApp({ error: appError("tab-unsupported") });
     return Promise.resolve();
   }
+  clearTimeline();
   return open({ kind: "tab", label: "Shared tab" }, (e) => e.startTab());
 }
 
 export function stopSource(): void {
   engine?.stop();
+  clearTimeline();
   silentSince = 0;
   setApp({ source: null, silentHint: false });
 }

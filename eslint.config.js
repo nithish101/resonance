@@ -30,6 +30,11 @@ export default tseslint.config(
     },
   },
   {
+    // Test-only pages are entry points, not hot-reloaded component modules.
+    files: ["packages/web/src/test-pages/**"],
+    rules: { "react-refresh/only-export-components": "off" },
+  },
+  {
     files: ["**/*.{ts,tsx}"],
     languageOptions: { globals: { ...globals.browser, ...globals.worker } },
     rules: {

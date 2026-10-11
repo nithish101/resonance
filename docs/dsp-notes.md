@@ -127,7 +127,47 @@ the estimates are stable at 122, 126, and 123 BPM (not ground truth; see the eva
   version for shaders.
 - Loudness = RMS level in dB, auto-gained against the same slow peak tracker as the bands, gated.
 
-## What's not here yet (P1)
+## 8. Beat tracking (DSP-7)
 
-Beat tracking with phase (DSP-7), chroma and key (DSP-8), and offline analysis of whole files
-for a seek-bar timeline (DSP-9). The feature frame already reserves their fields.
+`beat.rs`. Tempo says how often beats come; the tracker decides when. Every 4 hops it scores a
+comb of impulses one period apart over the last ~6 s of a **bass-weighted** onset envelope
+(0.35 × all-band flux + 0.65 × flux of the mel bands below 200 Hz), with weights 0.8^k for older
+impulses, and takes the best offset as "the last beat was o frames ago". That measurement steers
+a phase-locked loop: errors under 20% of a period nudge the predicted next beat by 35% of the
+error; a larger error must repeat twice before the tracker jumps. Beats fire when the frame clock
+reaches the _predicted_ time, so they land on the beat instead of a detection delay after it.
+
+**Why bass-weighted.** With all-band flux, the tracker locked half a beat off on every humanized
+groove (F = 0): broadband off-beat hi-hats rise across many mel bands, while the kick lights only
+a few low ones. Weighting the low bands fixed it (F 0.98-0.99). Tempo still uses the all-band
+flux: when it used the bass-weighted envelope too, bass-line rhythms pulled a real house track to
+2/3 of its tempo (81 instead of 122 BPM).
+
+## 9. Offline beat grid (DSP-9)
+
+`beatgrid.rs`: Ellis's 2007 dynamic-programming beat tracker (the algorithm behind librosa's
+`beat_track`), over the whole file's bass-weighted onset envelope with the median tempo:
+C(t) = O(t) + max over τ in [t - 2P, t - P/2] of (C(τ) - 100 · log²((t - τ)/P)), then a backtrack
+from the best final beat, then trimming weak beats at the edges. Non-causal, so it runs once per
+file in a worker (`workers/offline.worker.ts`) on a 22.05 kHz mono decode, about 2 s for a 4:43
+track on the build machine. The renderer uses this grid in file mode, so beat-synced visuals
+anticipate the beat instead of reacting to it; the seek bar draws the energy envelope with a tick
+every four beats.
+
+## 10. Chroma and key (DSP-8)
+
+`chroma.rs`. Each FFT bin from **200 Hz** to 5 kHz adds its magnitude to its nearest pitch class
+(MIDI 69 + 12·log2(f/440), mod 12); the vector is normalized and smoothed (~200 ms). The floor
+matters: a 2048-point FFT's bins are wider than a semitone below about 400 Hz, and with a 55 Hz
+floor the kick drum's energy landed on C♯ and dominated every frame, turning a C-major groove into
+B♭ minor. Chord tones still register through their harmonics above 200 Hz.
+
+Key: a slow (~8 s) chroma average is correlated (Pearson) with the Krumhansl-Kessler major and
+minor profiles rotated to all 12 tonics; the best of 24 wins, and confidence is how far it clears
+the runner-up. The "Follow the key" colour theme maps keys around the circle of fifths, so keys
+a fifth apart get neighbouring hues and minor keys are darker.
+
+Verified (`tests/beat_chroma.rs`): online beats F ≥ 0.989 on click tracks at 70-174 BPM and
+0.977 on a humanized groove; offline grid F = 1.000 on humanized grooves at 96, 128, and 150 BPM;
+C-major and A-minor triads peak on their chord tones; C-major and A-minor scales get the right
+key; every rotated profile classifies as itself; the C-major groove is detected as C major.

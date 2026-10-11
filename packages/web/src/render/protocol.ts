@@ -30,6 +30,8 @@ export type RenderInbound =
   | { type: "clockSample"; sample: ClockSample }
   /** Test hook: force a GPU context/device loss (RD-12). */
   | { type: "simulate-loss" }
+  /** Offline beat grid (media seconds) for the playing file, or null (DSP-9). */
+  | { type: "beats"; beats: number[] | null }
   /** Test hook: luminance stats of the next frame, read back from the GPU. */
   | { type: "probe" };
 

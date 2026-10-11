@@ -12,6 +12,8 @@ export interface Features {
   lead: number;
   /** True if any onset flag was set in frames that became visible since the last sample. */
   onset: boolean;
+  /** Same for the live beat tracker's beat flag (DSP-7). */
+  beat: boolean;
   /** Newest frame index consumed. */
   index: number;
   valid: boolean;
@@ -23,6 +25,7 @@ export function createFeatures(): Features {
     time: 0,
     lead: 0,
     onset: false,
+    beat: false,
     index: -1,
     valid: false,
   };
@@ -49,6 +52,7 @@ export class FrameReader {
    */
   sample(target: number | null, out: Features): void {
     out.onset = false;
+    out.beat = false;
     let hi = this.a;
     let lo = this.b;
     const latest = this.bus.latest();
@@ -93,7 +97,9 @@ export class FrameReader {
     // Onset flags from every frame that became visible since the last call, up to `hi`.
     const from = Math.max(this.lastScanned + 1, hi.index - this.bus.slots + 2);
     for (let i = from; i <= hi.index; i++) {
-      if (this.bus.read(i, this.probe) && this.probe.data[F.onset]! > 0.5) out.onset = true;
+      if (!this.bus.read(i, this.probe)) continue;
+      if (this.probe.data[F.onset]! > 0.5) out.onset = true;
+      if (this.probe.data[F.beat]! > 0.5) out.beat = true;
     }
     this.lastScanned = Math.max(this.lastScanned, hi.index);
   }

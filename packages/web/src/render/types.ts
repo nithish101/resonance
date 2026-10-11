@@ -50,8 +50,15 @@ export interface VisualState {
   flash: number;
   /** Smoothed low-frequency energy. */
   bass: number;
-  /** Seconds since the last onset (drives the nebula shockwave); large when none yet. */
+  /**
+   * Seconds since the last beat, or the last onset when no beats are known (drives the nebula
+   * shockwave); large when none yet.
+   */
   onsetAge: number;
+  /** Beat envelope, 0..1, decaying; 0 when no beats are known. */
+  beatPulse: number;
+  /** Position within the current beat, 0..1 (from the offline grid or the live tracker). */
+  beatPhase: number;
   palette: Palette;
   settings: RenderSettings;
   /** Device-pixel scale after adaptive quality. */

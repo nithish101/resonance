@@ -102,6 +102,9 @@ function handle(m: RenderInbound) {
       case "simulate-loss":
         backend?.simulateLoss();
         break;
+      case "beats":
+        loop?.setBeats(m.beats);
+        break;
       case "probe":
         void backend?.probe().then((p) => post({ type: "probe", ...p }));
         break;

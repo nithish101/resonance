@@ -24,9 +24,12 @@ export interface ClockSample {
   inputLatency: number;
   /** Context time (s) the engine is currently processing (currentTime at sample). */
   currentTime: number;
+  /** File mode: the media element's position (s) at the sample, and 1 while playing. */
+  mediaTime: number;
+  mediaRate: number;
 }
 
-const FIELDS = 9;
+const FIELDS = 11;
 
 export function createClockSample(): ClockSample {
   return {
@@ -39,6 +42,8 @@ export function createClockSample(): ClockSample {
     lookahead: 0,
     inputLatency: 0,
     currentTime: 0,
+    mediaTime: 0,
+    mediaRate: 0,
   };
 }
 
@@ -68,6 +73,8 @@ export class ClockBuffer {
     f[6] = s.lookahead;
     f[7] = s.inputLatency;
     f[8] = s.currentTime;
+    f[9] = s.mediaTime;
+    f[10] = s.mediaRate;
     Atomics.store(this.seq, 0, v + 1);
   }
 
@@ -85,6 +92,8 @@ export class ClockBuffer {
       out.lookahead = f[6]!;
       out.inputLatency = f[7]!;
       out.currentTime = f[8]!;
+      out.mediaTime = f[9]!;
+      out.mediaRate = f[10]!;
       if (Atomics.load(this.seq, 0) === s1) return true;
     }
     return false;
@@ -119,4 +128,13 @@ export function inputLatencyEstimate(
   const audible = c.contextTime + (nowAbs - c.perfAbs) / 1000;
   const processing = audible + c.outputLatency;
   return c.inputLatency + (processing - frameTime / c.sampleRate) + refreshMs / 1000;
+}
+
+/**
+ * File mode: the media time (s) audible right now. The element's position is what feeds the
+ * graph at sample time; it's heard after the lookahead delay and the output pipeline.
+ */
+export function audibleMediaTime(c: ClockSample, nowAbs: number): number {
+  const elapsed = ((nowAbs - c.perfAbs) / 1000) * c.mediaRate;
+  return c.mediaTime + elapsed - c.mediaRate * (c.lookahead + c.outputLatency);
 }

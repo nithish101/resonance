@@ -18,6 +18,7 @@ export class RenderLoop {
   private last = 0;
   private statsTimer: ReturnType<typeof setInterval>;
   private settings: RenderSettings;
+  private beats: number[] | null = null;
   private clock: ClockBuffer = ClockBuffer.create(false);
   private readonly clockSample: ClockSample = createClockSample();
 
@@ -48,6 +49,7 @@ export class RenderLoop {
     }
     const core = new RenderCore(this.backend, new FrameReader(bus), this.settings);
     core.resize(...this.size);
+    core.setBeats(this.beats);
     this.core = core;
   }
 
@@ -66,6 +68,11 @@ export class RenderLoop {
   resize(cssW: number, cssH: number, dpr: number): void {
     this.size = [cssW, cssH, dpr];
     this.core.resize(cssW, cssH, dpr);
+  }
+
+  setBeats(beats: number[] | null): void {
+    this.beats = beats;
+    this.core.setBeats(beats);
   }
 
   setSettings(s: RenderSettings): void {

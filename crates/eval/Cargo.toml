@@ -13,3 +13,4 @@ workspace = true
 [dependencies]
 resonance-dsp = { path = "../dsp" }
 resonance-fixtures = { path = "../fixtures" }
+symphonia = { version = "0.5", default-features = false, features = ["mp3"] }

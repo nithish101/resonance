@@ -1,4 +1,4 @@
-# Feature frame (schema v1)
+# Feature frame (schema v2)
 
 The DSP worker publishes one feature frame per hop: 512 samples for files (10.7 ms at 48 kHz,
 11.6 ms at 44.1 kHz) and 256 for live input, which analyses with a 1024-sample window to cut
@@ -33,17 +33,18 @@ index (-1 when empty), sample rate, hop.
 | 71     | 1     | onset                 | 0 or 1    | An onset was detected at the **previous** frame (peak picking needs one frame of look-ahead)                                                                        |
 | 72     | 1     | bpm                   | 60-180, 0 | Tempo estimate; 0 until about 3 s of audio                                                                                                                          |
 | 73     | 1     | tempo confidence      | 0..1      | (best score - mean score) / best score                                                                                                                              |
-| 74     | 1     | beat phase            | 0..1      | Position within the current beat (P1, DSP-7; 0 for now)                                                                                                             |
-| 75     | 1     | beat                  | 0 or 1    | Predicted beat (P1)                                                                                                                                                 |
-| 76     | 12    | chroma                | 0..1      | Pitch classes C..B (P1, DSP-8)                                                                                                                                      |
-| 88     | 1     | key                   | -1, 0-23  | 0-11 major C..B, 12-23 minor C..B, -1 unknown (P1)                                                                                                                  |
-| 89     | 1     | key confidence        | 0..1      | (P1)                                                                                                                                                                |
+| 74     | 1     | beat phase            | 0..1      | Position within the current beat (DSP-7)                                                                                                                            |
+| 75     | 1     | beat                  | 0 or 1    | Predicted beat (DSP-7)                                                                                                                                              |
+| 76     | 12    | chroma                | 0..1      | Pitch classes C..B, 200 Hz-5 kHz (DSP-8)                                                                                                                            |
+| 88     | 1     | key                   | -1, 0-23  | 0-11 major C..B, 12-23 minor C..B, -1 unknown (DSP-8)                                                                                                               |
+| 89     | 1     | key confidence        | 0..1      | How far the best key clears the runner-up                                                                                                                           |
 | 90     | 1     | centroid              | Hz        | Spectral centroid (magnitude-weighted)                                                                                                                              |
 | 91     | 1     | centroid (normalized) | 0..1      | log2(centroid / 50 Hz) / log2(16 kHz / 50 Hz), gated                                                                                                                |
 | 92     | 1     | rms                   | linear    | RMS of the analysis frame, before any gain                                                                                                                          |
 | 93     | 1     | loudness              | 0..1      | Auto-gained level, gated                                                                                                                                            |
 | 94     | 1     | gate                  | 0 or 1    | Noise gate open (level above -57 dBFS; closes below -62)                                                                                                            |
-| 95     | 17    | reserved              |           | Zero                                                                                                                                                                |
+| 95     | 1     | beat strength         | >= 0      | Bass-weighted onset strength (0.35 all-band + 0.65 below 200 Hz) / 6; drives beat phase (v2)                                                                        |
+| 96     | 16    | reserved              |           | Zero                                                                                                                                                                |
 
 "Gated" fields fade to zero (250 ms release) while the noise gate is closed, so silence and room
 noise never get amplified into visuals (ER-4).
@@ -57,6 +58,7 @@ renderer compares this timestamp with the audio output clock to pick and interpo
 
 ## Versioning
 
-Any change to offsets, field meanings, or the slot layout bumps `FRAME_SCHEMA_VERSION` in both
+v2 (milestone 12) added `beat strength` at offset 95. Any change to offsets, field meanings, or
+the slot layout bumps `FRAME_SCHEMA_VERSION` in both
 `frame.rs` and `frames.ts`. Reserved floats exist so P1 fields can be added without moving
 anything.

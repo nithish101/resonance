@@ -30,8 +30,9 @@ another tab and visualize that. Audio never leaves your browser.
   lookahead and the renderer targets the audio output clock (`getOutputTimestamp`). Live input
   from a mic, another tab, or the whole system runs at minimum latency.
 - **Measured accuracy.** Onset F-measure 1.000 on click tracks and 0.928 on humanized grooves
-  (±70 ms); tempo Acc1 14/14 with no octave errors from 70 to 174 BPM. The mel filterbank
-  matches librosa weight for weight.
+  (±70 ms); tempo Acc1 14/14 with no octave errors from 70 to 174 BPM; beat F 0.99 for the
+  live phase-locked tracker and 1.000 for the offline dynamic-programming grid on humanized
+  grooves. The mel filterbank matches librosa weight for weight.
 - **Shipped like a product:** 104 KB gzipped (JS + CSS + WASM), Lighthouse 100/100/100, zero axe
   violations, 46 e2e tests including visual regression and measured WCAG flash limits, and AWS
   CDK with GitHub OIDC deploys.
@@ -100,12 +101,12 @@ including methodology and the native numbers: [docs/benchmarks.md](docs/benchmar
 From `pnpm eval` ([docs/evaluation.md](docs/evaluation.md)). Onsets are scored with the standard
 ±70 ms F-measure; tempo with Acc1 (within 4%) and Acc2 (also half/double).
 
-| Dataset                                               | Onset F           | Tempo Acc1 | Tempo Acc2 |
-| ----------------------------------------------------- | ----------------- | ---------- | ---------- |
-| Click tracks, 70-174 BPM (5)                          | 1.000             | 5/5        | 5/5        |
-| Clean grooves (2)                                     | 0.981             | 2/2        | 2/2        |
-| Humanized grooves: jitter, swing, velocity, noise (7) | 0.928             | 7/7        | 7/7        |
-| Real music (3 bundled songs)                          | not annotated yet |            |            |
+| Dataset                                               | Onset F           | Tempo Acc1 | Tempo Acc2 | Beat F, live tracker | Beat F, offline grid |
+| ----------------------------------------------------- | ----------------- | ---------- | ---------- | -------------------- | -------------------- |
+| Click tracks, 70-174 BPM (5)                          | 1.000             | 5/5        | 5/5        | 0.998                | 0.997                |
+| Clean grooves (2)                                     | 0.981             | 2/2        | 2/2        | 0.980                | 1.000                |
+| Humanized grooves: jitter, swing, velocity, noise (7) | 0.928             | 7/7        | 7/7        | 0.993                | 1.000                |
+| Real music (3 bundled songs)                          | not annotated yet |            |            |                      |                      |
 
 These are synthetic fixtures with exact ground truth, so treat them as an upper bound. Real-song
 scoring waits on hand-tapped beat annotations; using Resonance's own output as ground truth would
@@ -124,10 +125,19 @@ Each 512-sample hop, the analyzer:
 4. detects onsets from the positive rise of the log-mel spectrum against a moving-median
    threshold,
 5. estimates tempo by autocorrelating that onset envelope and scoring 60-180 BPM over the first
-   four multiples of each period, with a log-Gaussian prior that suppresses octave errors.
+   four multiples of each period, with a log-Gaussian prior that suppresses octave errors,
+6. tracks beat phase with a phase-locked loop over a bass-weighted onset envelope, and estimates
+   chroma and key (Krumhansl-Schmuckler profiles).
+
+For files, a worker also analyses the whole track up front (a dynamic-programming beat grid, the
+key, and an energy envelope), so the seek bar shows the track's shape and the visuals anticipate
+beats instead of reacting to them.
 
 The Spectral Tunnel wraps the mel spectrum around the tunnel walls, drives forward motion from
-loudness, and pulses on onsets through a WCAG flash limiter. The maths, the parameters, and how
+loudness, and pulses on beats and onsets through a WCAG flash limiter. The Particle Nebula is a
+three-arm spiral: on WebGPU, a compute shader simulates up to a million particles springing
+toward their orbits while bass, beat shockwaves, and treble push them around; on WebGL2 a
+stateless version draws up to 150k. The maths, the parameters, and how
 each piece is verified: [docs/dsp-notes.md](docs/dsp-notes.md). Frame layout:
 [docs/feature-frame.md](docs/feature-frame.md).
 
@@ -246,9 +256,8 @@ The capability pill and banner always show which renderer and transport are acti
 
 - **No live demo yet.** It needs an AWS account; the stack and pipeline are ready.
 - **Screenshots and the hero GIF predate the Particle Nebula.** Rerun `pnpm capture` to include it.
-- **Beat tracking, chroma/key, and offline timelines aren't built yet** (P1). Their fields are
-  reserved in the feature frame.
-- **Real-music accuracy is unmeasured** until the bundled songs have hand-tapped annotations.
+- **Real-music accuracy is unmeasured** until the bundled songs have hand-tapped annotations
+  (the tool is at `/annotate.html` on the dev server; see eval/annotations/README.md).
   Published accuracy is on synthetic audio, an upper bound.
 - **A/V sync is verified in software only.** Speaker and display latency need the camera check
   ([latency.md](docs/latency.md)). Bluetooth output adds delay that browsers often don't report.

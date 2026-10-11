@@ -18,7 +18,7 @@
  * The layout is documented in docs/feature-frame.md and must match `crates/dsp/src/frame.rs`.
  */
 
-export const FRAME_SCHEMA_VERSION = 1;
+export const FRAME_SCHEMA_VERSION = 2;
 const MAGIC = 0x52534e43; // "RSNC"
 
 /** Float32 payload fields. Offsets are in floats from the start of the payload. */
@@ -39,8 +39,9 @@ export const F = {
   rms: 92, // linear RMS of the frame, pre-gain
   loudness: 93, // 0..1 auto-gained loudness, 0 when gated
   gate: 94, // 1 when the noise gate is open (signal above the floor), else 0
+  beatStrength: 95, // bass-weighted onset strength that drives beat phase (schema v2)
 } as const;
-export const FRAME_FLOATS = 112; // 95 used, rest reserved
+export const FRAME_FLOATS = 112; // 96 used, rest reserved
 
 export const BAND_NAMES = ["sub-bass", "bass", "low-mid", "mid", "high-mid", "treble"] as const;
 export const MEL_BANDS = 64;

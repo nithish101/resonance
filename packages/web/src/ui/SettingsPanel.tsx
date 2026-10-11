@@ -1,7 +1,7 @@
 import { useId } from "react";
 import { updateSettings } from "../app/controller";
 import { setUi, useApp, type Settings } from "../app/store";
-import { PALETTES } from "../render/palettes";
+import { KEY_THEME, PALETTES } from "../render/palettes";
 import type { ModeId } from "../render/types";
 import { CloseIcon } from "./Icons";
 
@@ -107,7 +107,7 @@ export function SettingsPanel() {
         <div className="field" role="radiogroup" aria-label="Colour theme">
           <span className="field-label">Colour theme</span>
           <div className="swatches">
-            {PALETTES.map((p) => (
+            {[...PALETTES, KEY_THEME].map((p) => (
               <button
                 key={p.id}
                 role="radio"

@@ -72,3 +72,22 @@ impl Analyzer {
         self.inner.reset();
     }
 }
+
+/**
+ * Whole-file analysis (DSP-9): beat grid, key, and energy timeline for a mono signal. Runs the
+ * same analyzer as the live path, then a dynamic-programming beat tracker over the whole onset
+ * envelope. Packed as [bpm, key, keyConfidence, nBeats, beats (s)..., nEnergy, energy...].
+ */
+#[wasm_bindgen(js_name = summarizeFile)]
+pub fn summarize_file(samples: &[f32], sample_rate: f32, energy_points: usize) -> Vec<f32> {
+    let s = resonance_dsp::offline::summarize(samples, Config::new(sample_rate), energy_points);
+    let mut out = Vec::with_capacity(5 + s.beats.len() + s.energy.len());
+    out.push(s.bpm);
+    out.push(s.key as f32);
+    out.push(s.key_confidence);
+    out.push(s.beats.len() as f32);
+    out.extend(s.beats.iter().map(|&b| b as f32));
+    out.push(s.energy.len() as f32);
+    out.extend_from_slice(&s.energy);
+    out
+}

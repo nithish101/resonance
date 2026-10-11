@@ -18,6 +18,7 @@ export function DebugOverlay() {
   const info = useApp((s) => s.engineInfo);
   const renderer = useApp((s) => s.renderer);
   const source = useApp((s) => s.source);
+  const timeline = useApp((s) => s.timeline);
   const spectrum = useRef<HTMLCanvasElement>(null);
   const onsets = useRef<HTMLCanvasElement>(null);
   const flux = useRef(new Float32Array(HISTORY));
@@ -122,7 +123,17 @@ export function DebugOverlay() {
     ["Transport", info ? `${info.transport}${info.simd ? " · SIMD" : ""}` : "—", "transport"],
     ["Sample rate", info ? `${info.sampleRate} Hz` : "—"],
     ["BPM", dsp?.bpm ? fmt(dsp.bpm, 1) : "—", "bpm"],
-    ["Key", dsp ? keyName(dsp.key) : "—"],
+    ["Key", dsp ? keyName(dsp.key) : "—", "key"],
+    [
+      "Beat grid (offline)",
+      !timeline
+        ? "—"
+        : timeline.status === "ready"
+          ? `${timeline.beats.length} beats · ${Math.round(timeline.ms)} ms`
+          : timeline.status,
+      "grid",
+    ],
+    ["Key (whole track)", timeline?.status === "ready" ? keyName(timeline.key) : "—", "grid-key"],
     ["Flashes limited", render ? String(render.flashesSuppressed) : "—"],
   ];
 

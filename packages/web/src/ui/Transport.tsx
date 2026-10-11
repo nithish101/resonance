@@ -2,6 +2,7 @@ import { seek, setLoop, setVolume, stopSource, togglePlay } from "../app/control
 import { useApp } from "../app/store";
 import { formatTime } from "./format";
 import { CloseIcon, LoopIcon, PauseIcon, PlayIcon, VolumeIcon } from "./Icons";
+import { Timeline } from "./Timeline";
 
 export function Transport() {
   const source = useApp((s) => s.source);
@@ -31,16 +32,19 @@ export function Transport() {
         {!live && (
           <div className="seek">
             <span className="num">{formatTime(pb.time)}</span>
-            <input
-              type="range"
-              min={0}
-              max={pb.duration || 0}
-              step={0.1}
-              value={Math.min(pb.time, pb.duration || 0)}
-              onChange={(e) => seek(Number(e.target.value))}
-              aria-label="Seek"
-              aria-valuetext={`${formatTime(pb.time)} of ${formatTime(pb.duration)}`}
-            />
+            <span className="seek-track">
+              <Timeline duration={pb.duration} />
+              <input
+                type="range"
+                min={0}
+                max={pb.duration || 0}
+                step={0.1}
+                value={Math.min(pb.time, pb.duration || 0)}
+                onChange={(e) => seek(Number(e.target.value))}
+                aria-label="Seek"
+                aria-valuetext={`${formatTime(pb.time)} of ${formatTime(pb.duration)}`}
+              />
+            </span>
             <span className="num">{formatTime(pb.duration)}</span>
           </div>
         )}

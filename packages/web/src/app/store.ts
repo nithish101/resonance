@@ -24,6 +24,17 @@ export interface Playback {
   loop: boolean;
 }
 
+/** Whole-file analysis for the playing file (DSP-9). */
+export interface Timeline {
+  status: "analysing" | "ready" | "failed";
+  bpm: number;
+  key: number;
+  beats: number[];
+  energy: number[];
+  /** Analysis wall time in ms. */
+  ms: number;
+}
+
 export interface AppState {
   caps: Capabilities | null;
   engine: EngineState;
@@ -40,6 +51,7 @@ export interface AppState {
   renderer: RendererInfo | null;
   /** Times the GPU device was lost and rebuilt (RD-12). */
   gpuRecoveries: number;
+  timeline: Timeline | null;
   settings: Settings;
   ui: UiState;
 }
@@ -80,6 +92,7 @@ export const initialState: AppState = {
   render: null,
   renderer: null,
   gpuRecoveries: 0,
+  timeline: null,
   settings: DEFAULT_APP_SETTINGS,
   ui: {
     settingsOpen: false,

@@ -57,7 +57,7 @@ Source of truth: [`PRD.md`](../PRD.md). Requirement IDs and priorities (P0/P1/P2
 - [x] **M10 ★ Docs and MVP.** (complete except the live deploy, which needs the owner's AWS account) PRD §13. README, architecture, feature-frame, dsp-notes,
       benchmarks (`pnpm bench`), evaluation (`pnpm eval`), ADRs.
 - [x] **M11 WebGPU.** RD-2, RD-5, RD-12. WebGPU backend, Particle Nebula, device and context loss.
-- [ ] **M12 Musical analysis.** DSP-7 to DSP-9, the IN-5 timeline, PRD §9.2. Beat tracker,
+- [x] **M12 Musical analysis.** DSP-7 to DSP-9, the IN-5 timeline, PRD §9.2. Beat tracker,
       chroma and key, offline analysis worker, seek-bar timeline, accuracy eval.
 - [ ] **M13 Polish (P1).** RD-7 to RD-9, UI-4. Post-FX, crossfades, beat camera, shortcuts and
       `?` sheet, URL-hash settings.
@@ -219,3 +219,10 @@ Real problems hit during the build and how they were solved. Source for the READ
   a WebGPU device that can't be rebuilt left the canvas black. The render worker now reports it
   and the host moves rendering to WebGL2 on a fresh canvas. Test probes also time out instead of
   hanging.
+- **Beat tracker locked onto the off-beat.** With the all-band flux, the online tracker scored F = 0
+  on humanized grooves: perfectly locked, half a beat off, because off-beat hi-hats outweigh the
+  kick in all-band flux. A bass-weighted envelope for beat phase fixed it (0.98+). Using it for
+  tempo too pulled a real house track to 2/3 tempo, so tempo stays on the all-band flux.
+- **Chroma heard the kick drum as C♯.** Low FFT bins are wider than a semitone, and kick energy
+  around 70 Hz mapped to C♯ in every frame, so a C-major groove came out as B♭ minor. Chroma now
+  starts at 200 Hz.

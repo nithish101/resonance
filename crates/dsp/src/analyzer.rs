@@ -4,6 +4,8 @@
 //! and writes one feature frame to [`Analyzer::frame`]. Every buffer is allocated in
 //! [`Analyzer::new`]; `process` performs no heap allocation (checked by tests/no_alloc.rs).
 
+use crate::beat::BeatTracker;
+use crate::chroma::Chroma;
 use crate::complex::Complex;
 use crate::envelope::{power_db, Follower, PeakTracker};
 use crate::fft::RealFft;
@@ -82,6 +84,8 @@ pub struct Analyzer {
     gate_open: bool,
     onsets: OnsetDetector,
     tempo: TempoEstimator,
+    beats: BeatTracker,
+    chroma: Chroma,
     bin_hz: Vec<f32>,
     sensitivity: f32,
     smoothing: f32,
@@ -132,8 +136,19 @@ impl Analyzer {
             loudness_env: Follower::new(0.01, 0.3, rate),
             gate_env: Follower::new(0.03, 0.25, rate),
             gate_open: false,
-            onsets: OnsetDetector::new(MEL_BANDS, rate, 0.06),
+            onsets: OnsetDetector::new(
+                MEL_BANDS,
+                MelBank::new(cfg.sample_rate, n, MEL_BANDS, cfg.fmin, cfg.fmax)
+                    .centers
+                    .iter()
+                    .filter(|&&c| c < 200.0)
+                    .count(),
+                rate,
+                0.06,
+            ),
             tempo: TempoEstimator::new(rate),
+            beats: BeatTracker::new(),
+            chroma: Chroma::new(cfg.sample_rate, n, rate),
             bin_hz,
             sensitivity: 1.0,
             smoothing: 0.5,
@@ -195,6 +210,13 @@ impl Analyzer {
         self.gate_open = false;
         self.onsets.reset();
         self.tempo.reset();
+        self.beats.reset();
+        self.chroma.reset();
+    }
+
+    /// Frame index (hops since start, fractional) of the beat emitted on the last hop, if any.
+    pub fn beat_frame(&self) -> Option<f64> {
+        self.beats.beat.then_some(self.beats.beat_frame)
     }
 
     fn range_db(&self) -> f32 {
@@ -273,8 +295,17 @@ impl Analyzer {
             self.onset_db[b] = self.mel_db[b].max(self.mel_peak[b].db - ONSET_FLOOR_DB);
         }
         let (flux, onset) = self.onsets.update(&self.onset_db, self.gate_open);
-        // Tempo from the onset-strength envelope (DSP-6); silence contributes nothing.
+        // Tempo (how often) uses the all-band flux, which captures periodicity best; on real
+        // house tracks a bass-weighted envelope let bass-line rhythms pull the estimate to 2/3
+        // of the tempo. Beat *phase* (where) uses a bass-weighted envelope instead: the beat is
+        // usually carried by the kick, and broadband off-beat hi-hats dominate the all-band flux,
+        // which put the phase half a beat off. Silence contributes nothing to either.
         self.tempo.push(if self.gate_open { flux } else { 0.0 });
+        let beat_env = if self.gate_open {
+            0.35 * flux + 0.65 * self.onsets.low_flux
+        } else {
+            0.0
+        };
 
         // Normalized mel for display: per-bin reference, capped relative to the strongest bin.
         for b in 0..MEL_BANDS {
@@ -321,6 +352,7 @@ impl Analyzer {
 
         let f = &mut self.frame;
         f[FLUX] = (flux / 6.0).clamp(0.0, 4.0);
+        f[BEAT_STRENGTH] = (beat_env / 6.0).clamp(0.0, 4.0);
         f[ONSET] = if onset { 1.0 } else { 0.0 };
         f[CENTROID] = centroid;
         f[CENTROID_NORM] = centroid_norm * gate;
@@ -329,7 +361,23 @@ impl Analyzer {
         f[GATE] = if self.gate_open { 1.0 } else { 0.0 };
         f[BPM] = self.tempo.bpm;
         f[TEMPO_CONFIDENCE] = self.tempo.confidence;
-        f[KEY] = -1.0;
+
+        // Beat tracking (DSP-7) on the same onset envelope the tempo uses.
+        self.beats
+            .update(beat_env, self.tempo.bpm, self.cfg.hop_rate());
+        f[BEAT_PHASE] = self.beats.phase;
+        f[BEAT] = if self.beats.beat { 1.0 } else { 0.0 };
+
+        // Chroma and key (DSP-8).
+        self.chroma.update(&self.power, self.gate_open);
+        for (dst, &c) in f[CHROMA_AT..CHROMA_AT + CHROMA]
+            .iter_mut()
+            .zip(&self.chroma.smoothed)
+        {
+            *dst = c * gate;
+        }
+        f[KEY] = self.chroma.key as f32;
+        f[KEY_CONFIDENCE] = self.chroma.confidence;
         self.hops += 1;
     }
 }

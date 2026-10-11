@@ -22,12 +22,14 @@ pub const CENTROID_NORM: usize = 91;
 pub const RMS: usize = 92;
 pub const LOUDNESS: usize = 93;
 pub const GATE: usize = 94;
+/// Bass-weighted onset strength that drives tempo and beats (schema v2).
+pub const BEAT_STRENGTH: usize = 95;
 
-/// Total floats per frame; 95..112 are reserved for future fields.
+/// Total floats per frame; 96..112 are reserved for future fields.
 pub const FRAME_FLOATS: usize = 112;
 
 /// Offsets in the same order as the `F` table in frames.ts.
-pub const OFFSETS: [usize; 16] = [
+pub const OFFSETS: [usize; 17] = [
     BANDS_AT,
     MEL_AT,
     FLUX,
@@ -44,6 +46,7 @@ pub const OFFSETS: [usize; 16] = [
     RMS,
     LOUDNESS,
     GATE,
+    BEAT_STRENGTH,
 ];
 
 /// Frequency edges (Hz) of the six bands: sub-bass, bass, low-mid, mid, high-mid, treble.

@@ -234,3 +234,11 @@ Real problems hit during the build and how they were solved. Source for the READ
   doing bloom and crossfades only on WebGL2 would have hidden them from most visitors. Both
   backends render each mode into a scene texture and share the same bright-pass, separable blur,
   and composite (crossfade, bloom, beat-triggered chromatic aberration, grain).
+- **Old audio leaking into a new source.** On the slower CI runner, switching from a track to a
+  test tone over the postMessage transport left the previous track's queued batches to be
+  analysed after the reset, so the tone's first stats mixed both sources. Reset now drops queued
+  batches and skips the shared ring to its newest sample (`RingConsumer.skipToLatest`, unit
+  tested), and the test waits for a stats window that is entirely the tone.
+- **Banner over the picker.** With Linux font metrics the capability banner overlapped the bottom
+  of the source picker and intercepted clicks. The banner now appears once something is playing;
+  the top-bar pill shows the active renderer and transport from the start.

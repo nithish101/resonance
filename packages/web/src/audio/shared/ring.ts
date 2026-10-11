@@ -141,6 +141,15 @@ export class RingConsumer {
     if (u32(w) === this.read) Atomics.wait(this.header, I_WRITE, w, timeoutMs);
   }
 
+  /**
+   * Discards everything pending (e.g. audio from a previous source). Skipped samples aren't
+   * overruns, so the counter isn't touched.
+   */
+  skipToLatest(): void {
+    const w = u32(Atomics.load(this.header, I_WRITE));
+    this.advance(u32(w - this.read));
+  }
+
   /** Copies up to `dest.length` of the oldest still-valid samples into `dest`. */
   readInto(dest: Float32Array): ReadResult {
     const { capacity, margin } = this.layout;

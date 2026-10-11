@@ -62,6 +62,20 @@ describe("SPSC ring buffer", () => {
     expect(next).toBe(1000);
   });
 
+  it("skips pending samples without counting them as overruns", () => {
+    const layout = createRing(1024, 128);
+    const p = new RingProducer(layout);
+    const c = new RingConsumer(layout);
+    p.push(chunk(0, 100), 0);
+    c.skipToLatest();
+    p.push(chunk(100, 10), 0);
+    const dest = new Float32Array(64);
+    const r = c.readInto(dest);
+    expect(r).toEqual({ count: 10, index: 100, dropped: 0 });
+    expect(dest[0]).toBe(100);
+    expect(c.overruns).toBe(0);
+  });
+
   it("rejects bad configurations", () => {
     expect(() => createRing(1000)).toThrow(/power of two/);
     expect(() => createRing(1024, 512)).toThrow(/4x/);

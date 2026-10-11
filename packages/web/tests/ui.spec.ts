@@ -119,8 +119,10 @@ test.describe("capability banner (UI-5)", () => {
     await page.goto("/?renderer=main&coi=0");
     await expect(page.getByTestId("capability-pill")).toHaveText(/WebGL2 · main/);
     const banner = page.getByTestId("capability-banner");
-    await expect(banner).toContainText("main thread");
+    // The banner waits for playback so it never covers the source picker.
+    await expect(banner).toHaveCount(0);
     await page.getByTestId("track-deep-house-soul").click();
+    await expect(banner).toContainText("main thread");
     await expect(page.getByTestId("capability-pill")).toHaveText(/postMessage/);
     await expect(banner).toContainText("cross-origin isolated");
     await banner.getByRole("button", { name: "OK" }).click();

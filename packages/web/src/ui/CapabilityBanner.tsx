@@ -21,7 +21,10 @@ export function CapabilityNotice() {
   const caps = useApp((s) => s.caps);
   const dismissed = useApp((s) => s.ui.bannerDismissed);
   const accepted = useApp((s) => s.ui.warningAccepted);
-  if (!r || !caps || dismissed || !accepted) return null;
+  const source = useApp((s) => s.source);
+  // The explanation appears once something plays, above the transport; before that the
+  // capability pill in the top bar says the same thing without covering the source picker.
+  if (!r || !caps || dismissed || !accepted || !source) return null;
   const notes: string[] = [];
   if (!caps.webgpu) notes.push("WebGPU isn't available here, so Resonance uses WebGL2.");
   if (r.location === "main") notes.push(r.reason);

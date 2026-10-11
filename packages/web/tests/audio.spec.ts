@@ -256,15 +256,21 @@ test.describe("DSP in the browser (M3)", () => {
         ).__resonance;
         return r.controller.getEngine().playUrl("/audio/fixtures/sine-1000.wav");
       });
+      // Wait for one stats window that's entirely the tone: centroid near 1 kHz and the "mid"
+      // band (index 3) loudest, together.
       await expect
-        .poll(async () => (await state(page)).dsp?.centroid ?? 0, { timeout: 15_000 })
-        .toBeGreaterThan(900);
-      const s = await state(page);
-      expect(s.dsp!.centroid).toBeLessThan(1100);
-      // 1 kHz is in the "mid" band (index 3), which should dominate.
-      const bands = s.dsp!.bands;
-      expect(bands.indexOf(Math.max(...bands))).toBe(3);
-      expect(s.dsp!.gate).toBe(1);
+        .poll(
+          async () => {
+            const d = (await state(page)).dsp;
+            if (!d) return "no stats";
+            const loudest = d.bands.indexOf(Math.max(...d.bands));
+            return d.centroid > 900 && d.centroid < 1100 && loudest === 3 && d.gate === 1
+              ? "ok"
+              : `centroid ${d.centroid.toFixed(0)}, loudest band ${loudest}`;
+          },
+          { timeout: 15_000 },
+        )
+        .toBe("ok");
     });
   }
 

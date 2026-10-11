@@ -215,6 +215,10 @@ self.onmessage = (e: MessageEvent<DspInbound>) => {
       void reconfigure(m.frameSize, m.hop);
       break;
     case "reset":
+      // Audio captured before the source changed must not reach the new analysis: drop queued
+      // postMessage batches and skip the ring to its newest sample.
+      pending = [];
+      consumer?.skipToLatest();
       analyzer?.reset();
       bus?.reset();
       fill = 0;

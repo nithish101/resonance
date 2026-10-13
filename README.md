@@ -4,17 +4,19 @@ A real-time music visualizer for the browser: a lock-free audio → analysis →
 across four threads, with signal processing written from scratch in Rust/WebAssembly and
 measured for speed and accuracy.
 
+**[Play now →](https://nithish101.github.io/resonance/)**
+
 [![CI](https://github.com/nithish101/resonance/actions/workflows/ci.yml/badge.svg)](https://github.com/nithish101/resonance/actions/workflows/ci.yml)
-[![Deploy](https://github.com/nithish101/resonance/actions/workflows/deploy.yml/badge.svg)](https://github.com/nithish101/resonance/actions/workflows/deploy.yml)
+[![Pages](https://github.com/nithish101/resonance/actions/workflows/pages.yml/badge.svg)](https://github.com/nithish101/resonance/actions/workflows/pages.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey.svg)](LICENSE)
 
 ![Spectral Tunnel, Particle Nebula, and Chroma Bloom reacting to "Deep House Soul" by Play House](docs/screenshots/hero.gif)
 
-**Live demo:** not deployed yet. The AWS stack and CD pipeline are ready ([docs/deploy.md](docs/deploy.md)).
-Run it locally in three commands (below). Try it with your own song, or pick one of 15 house
-tracks (John Summit, Fred again.., KETTAMA, FISHER, Dom Dolla, ...) from the built-in list: it opens
-the official YouTube upload in a new tab and Resonance visualizes that tab. Audio never leaves
-your browser.
+**Live demo: [nithish101.github.io/resonance](https://nithish101.github.io/resonance/)**
+(desktop Chrome or Edge for everything, including tab capture). Try it with your own song, or
+pick one of 15 house tracks (John Summit, Fred again.., KETTAMA, FISHER, Dom Dolla, ...) from the
+built-in list: it opens the official YouTube upload in a new tab and Resonance visualizes that
+tab. Audio never leaves your browser.
 
 ## Highlights
 
@@ -235,6 +237,12 @@ docs              architecture, latency, DSP notes, frame layout, benchmarks, ev
 
 ## Deployment
 
+The live demo is on GitHub Pages (`.github/workflows/pages.yml`), published after CI passes on
+`main` and smoke-tested afterwards. Pages can't send response headers, so that build ships a small
+service worker that adds COOP/COEP and the CSP to every response (`packages/web/src/coi`); the first
+visit reloads once to pick it up. If a browser blocks service workers, Resonance runs on its
+message-passing fallback instead.
+
 `infra/` defines a private S3 bucket behind CloudFront (Origin Access Control, HTTPS only,
 HTTP/2 and 3). A response headers policy sets COOP/COEP (for `SharedArrayBuffer`), CSP with
 `wasm-unsafe-eval`, and HSTS, generated from the same file `vite preview` serves, so every e2e run
@@ -270,7 +278,6 @@ The capability pill and banner always show which renderer and transport are acti
 
 ## Known limitations
 
-- **No live demo yet.** It needs an AWS account; the stack and pipeline are ready.
 - **Real-music accuracy is unmeasured** until the bundled songs have hand-tapped annotations
   (the tool is at `/annotate.html` on the dev server; see eval/annotations/README.md).
   Published accuracy is on synthetic audio, an upper bound.

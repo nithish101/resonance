@@ -1,0 +1,77 @@
+name: Pages
+
+# Publishes the live demo to GitHub Pages after CI passes on main, then smoke-tests it.
+# Pages can't send COOP/COEP headers, so this build ships a service worker that adds them
+# (packages/web/src/coi); the AWS deploy (deploy.yml) uses real response headers instead.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - name: Install wasm-pack
+        run: curl -sSf https://rustwasm.github.io/wasm-pack/installer/init.sh | sh
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build for /resonance/ with the isolation service worker
+        run: pnpm build
+        env:
+          RESONANCE_BASE: /resonance/
+          VITE_COI_SW: "1"
+      - name: Ship only the calibration fixture
+        run: find packages/web/dist/audio/fixtures -type f ! -name click-120.wav -delete
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: packages/web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+  smoke:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @resonance/web exec playwright install --with-deps chromium
+      - name: Smoke test the live site
+        run: node scripts/smoke-pages.mjs "https://nithish101.github.io/resonance/"

@@ -17,7 +17,7 @@ import "../ui/global.css";
 import { mergePasses, tapLatency, toBeatsFile } from "./annotate-core";
 
 type Phase = "idle" | "calibrating" | "pass1" | "pass2";
-const CLICK_URL = "/audio/fixtures/click-120.wav";
+const CLICK_URL = `${import.meta.env.BASE_URL}audio/fixtures/click-120.wav`;
 const clickTimes = Array.from({ length: 40 }, (_, k) => 0.5 + k * 0.5); // fixture ground truth
 
 function Annotator() {

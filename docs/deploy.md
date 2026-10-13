@@ -1,5 +1,9 @@
 # Deploying Resonance
 
+> The public demo runs on GitHub Pages (`.github/workflows/pages.yml`, no setup needed beyond
+> Pages being enabled with "GitHub Actions" as the source). The AWS stack below is the
+> production-style alternative with real response headers, HSTS, and a CDN you control.
+
 Resonance is a static site: a private S3 bucket behind CloudFront, with a response headers
 policy that makes every response cross-origin isolated (COOP/COEP) and sets CSP and HSTS. The
 infrastructure is AWS CDK (TypeScript) in `infra/`. Deploys run from GitHub Actions through

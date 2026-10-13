@@ -50,6 +50,11 @@ export default tseslint.config(
     languageOptions: { globals: globals.node },
   },
   {
+    // Runs as a service worker; __HEADERS__ is substituted at build time (vite.config.ts).
+    files: ["packages/web/src/coi/sw-template.js"],
+    languageOptions: { globals: { ...globals.serviceworker, __HEADERS__: "readonly" } },
+  },
+  {
     files: ["**/*.cjs"],
     languageOptions: { globals: globals.node, sourceType: "commonjs" },
   },

@@ -2,11 +2,15 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import * as controller from "./app/controller";
 import { useApp } from "./app/store";
+import { ensureIsolation } from "./coi/register";
 import { App } from "./ui/App";
 import "./ui/global.css";
 
 // Read-only debug hook for e2e tests and the browser console.
 Object.assign(globalThis, { __resonance: { store: useApp, controller } });
+
+// Static hosts (GitHub Pages): get cross-origin isolated before anything reads capabilities.
+await ensureIsolation();
 
 const root = document.getElementById("root");
 if (!root) throw new Error("#root missing");

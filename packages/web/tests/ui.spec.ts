@@ -116,7 +116,9 @@ test.describe("controls (UI-1, UI-2, AX-4)", () => {
 
 test.describe("capability banner (UI-5)", () => {
   test("names the active backend and explains a fallback", async ({ page }) => {
-    await page.goto("/?renderer=main&coi=0");
+    // Main-thread rendering in software competes with input handling on slow CI runners; this
+    // test is about the banner, so turn the post effects off.
+    await page.goto("/?renderer=main&coi=0#bloom=0&grain=0&aberration=0");
     await expect(page.getByTestId("capability-pill")).toHaveText(/WebGL2 · main/);
     const banner = page.getByTestId("capability-banner");
     // The banner waits for playback so it never covers the source picker.

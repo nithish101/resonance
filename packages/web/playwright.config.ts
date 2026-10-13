@@ -20,6 +20,9 @@ export default defineConfig({
   use: {
     baseURL: `http://localhost:${port}`,
     trace: "retain-on-failure",
+    // Everything renders in software (SwiftShader); a smaller viewport keeps 2-core CI runners
+    // responsive. Visual tests set their own capture sizes.
+    viewport: { width: 960, height: 540 },
   },
   projects: [
     {
@@ -27,6 +30,7 @@ export default defineConfig({
       testIgnore: /(tab-capture|webgpu)\.spec\.ts/,
       use: {
         ...devices["Desktop Chrome"],
+        viewport: { width: 960, height: 540 },
         launchOptions: {
           args: [
             // Software GL so rendering is identical on every machine (PRD 9.1 visual tests).

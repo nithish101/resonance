@@ -7,7 +7,7 @@ import { audibleMediaTime, inputLatencyEstimate, type ClockSample } from "../lib
 import { F } from "../lib/frames";
 import { FlashLimiter } from "./flash";
 import { type FrameReader, type Features, createFeatures } from "./features";
-import { keyPalette, paletteById } from "./palettes";
+import { TEMPO_THEME, keyPalette, paletteById, tempoPalette, type Palette } from "./palettes";
 import { QualityController, RefreshEstimator } from "./quality";
 import type { Backend, RenderSettings, VisualState } from "./types";
 
@@ -62,6 +62,14 @@ export class RenderCore {
   private haveBeats = false;
   private onsetPulse = 0;
   private paletteKey = -2;
+  private tempoBpm = 0;
+  private readonly tempoPal: Palette = {
+    ...TEMPO_THEME,
+    a: [...TEMPO_THEME.a],
+    b: [...TEMPO_THEME.b],
+    c: [...TEMPO_THEME.c],
+    d: [...TEMPO_THEME.d],
+  };
   private fadeStart = -1;
   private camKick = 0;
   private beatsSeen = 0;
@@ -154,7 +162,18 @@ export class RenderCore {
     if (beat) this.haveBeats = true;
     s.beatPulse = beat ? 1 : s.beatPulse * Math.exp(-dt / 0.2);
     s.beatPhase = d[F.beatPhase]!;
-    if (s.settings.theme === "key") {
+    if (s.settings.theme === "tempo") {
+      // Loosely: the palette eases toward the current tempo over a few seconds, so tempo
+      // estimates settling or a DJ mix drifting never flickers the colours.
+      const bpm = d[F.bpm]!;
+      if (bpm > 0) {
+        this.tempoBpm =
+          this.tempoBpm === 0
+            ? bpm
+            : this.tempoBpm + (bpm - this.tempoBpm) * (1 - Math.exp(-dt / 3));
+      }
+      s.palette = tempoPalette(this.tempoBpm, this.tempoPal);
+    } else if (s.settings.theme === "key") {
       const key = Math.round(d[F.key]!);
       if (key !== this.paletteKey) {
         this.paletteKey = key;

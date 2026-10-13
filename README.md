@@ -11,8 +11,10 @@ measured for speed and accuracy.
 ![Spectral Tunnel, Particle Nebula, and Chroma Bloom reacting to "Deep House Soul" by Play House](docs/screenshots/hero.gif)
 
 **Live demo:** not deployed yet. The AWS stack and CD pipeline are ready ([docs/deploy.md](docs/deploy.md)).
-Run it locally in three commands (below). Try it with your own song, or play YouTube Music in
-another tab and visualize that. Audio never leaves your browser.
+Run it locally in three commands (below). Try it with your own song, or pick one of 15 house
+tracks (John Summit, Fred again.., KETTAMA, FISHER, Dom Dolla, ...) from the built-in list: it opens
+the official YouTube upload in a new tab and Resonance visualizes that tab. Audio never leaves
+your browser.
 
 ## Highlights
 
@@ -138,8 +140,9 @@ key, and an energy envelope), so the seek bar shows the track's shape and the vi
 beats instead of reacting to them.
 
 The Spectral Tunnel wraps the mel spectrum around the tunnel walls, drives forward motion from
-loudness, and pulses on beats and onsets through a WCAG flash limiter. Modes crossfade into each
-other, the camera pushes in on the beat, and a shared post-processing chain adds bloom,
+loudness, and pulses on beats and onsets through a WCAG flash limiter. By default the colours follow the
+music's tempo, easing over a few seconds: deep blue for slow material, warm amber and rose around
+house tempos, violet when it gets fast. Modes crossfade into each other, the camera pushes in on the beat, and a shared post-processing chain adds bloom,
 beat-triggered chromatic aberration, and film grain, each toggleable. The Particle Nebula is a
 three-arm spiral: on WebGPU, a compute shader simulates up to a million particles springing
 toward their orbits while bass, beat shockwaves, and treble push them around; on WebGL2 a

@@ -1,7 +1,7 @@
 import { useId } from "react";
 import { updateSettings } from "../app/controller";
 import { setUi, useApp, type Settings } from "../app/store";
-import { KEY_THEME, PALETTES } from "../render/palettes";
+import { KEY_THEME, PALETTES, TEMPO_THEME, tempoPalette } from "../render/palettes";
 import type { ModeId } from "../render/types";
 import { CloseIcon } from "./Icons";
 
@@ -67,6 +67,18 @@ function Toggle(props: {
   );
 }
 
+/** A representative palette for the tempo swatch (house tempo, the middle of its range). */
+function tempoPreview() {
+  const p = tempoPalette(124, {
+    ...TEMPO_THEME,
+    a: [0, 0, 0],
+    b: [0, 0, 0],
+    c: [1, 1, 1],
+    d: [0, 0, 0],
+  });
+  return { a: p.a, b: p.b, c: p.c, d: p.d };
+}
+
 /** UI-2: every adjustable parameter. Changes apply immediately. */
 export function SettingsPanel() {
   const open = useApp((s) => s.ui.settingsOpen);
@@ -108,7 +120,12 @@ export function SettingsPanel() {
         <div className="field" role="radiogroup" aria-label="Colour theme">
           <span className="field-label">Colour theme</span>
           <div className="swatches">
-            {[...PALETTES, KEY_THEME].map((p) => (
+            {[
+              // The tempo swatch previews its range: slow, house, fast.
+              { ...TEMPO_THEME, ...tempoPreview() },
+              ...PALETTES,
+              KEY_THEME,
+            ].map((p) => (
               <button
                 key={p.id}
                 role="radio"

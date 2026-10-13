@@ -4,10 +4,10 @@
 
 import { DEFAULT_APP_SETTINGS, type Settings } from "./store";
 import type { ModeId } from "../render/types";
-import { KEY_THEME, PALETTES } from "../render/palettes";
+import { KEY_THEME, PALETTES, TEMPO_THEME } from "../render/palettes";
 
 const MODES: ModeId[] = ["tunnel", "nebula", "bloom"];
-const THEMES = [...PALETTES.map((p) => p.id), KEY_THEME.id];
+const THEMES = [TEMPO_THEME.id, ...PALETTES.map((p) => p.id), KEY_THEME.id];
 const NUMBERS: Record<string, [number, number]> = {
   intensity: [0.2, 1],
   sensitivity: [0.5, 2],

@@ -62,16 +62,18 @@ test.describe("Particle Nebula on WebGL2 (RD-5) and context loss (RD-12)", () =>
       ).__resonance.controller.updateSettings({ mode: "nebula", particles: 60_000 }),
     );
     await expect.poll(async () => (await state(page)).dsp?.hops ?? 0).toBeGreaterThan(100);
-    const lum = await page.evaluate(() =>
-      (
-        globalThis as unknown as {
-          __resonance: { controller: { probeFrame(): Promise<{ std: number; lit: number }> } };
-        }
-      ).__resonance.controller.probeFrame(),
-    );
-    // Mostly dark sky; what matters is that particles are visible.
-    expect(lum.lit).toBeGreaterThan(0.002);
-    expect(lum.std).toBeGreaterThan(5);
+    // Mostly dark sky; what matters is that particles are visible. Poll, because a probe can
+    // land during the 0.8 s crossfade from the tunnel.
+    const probe = () =>
+      page.evaluate(() =>
+        (
+          globalThis as unknown as {
+            __resonance: { controller: { probeFrame(): Promise<{ std: number; lit: number }> } };
+          }
+        ).__resonance.controller.probeFrame(),
+      );
+    await expect.poll(async () => (await probe()).lit).toBeGreaterThan(0.002);
+    expect((await probe()).std).toBeGreaterThan(5);
   });
 
   test("keeps rendering after the WebGL context is lost and restored", async ({ page }) => {

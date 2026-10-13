@@ -5,7 +5,7 @@ import { AppErrorException, appError, toAppError, type AppError } from "../audio
 import { CALIBRATION_TRACK, TRACKS } from "../audio/tracks";
 import { ClockBuffer, createClockSample } from "../lib/clock";
 import { analyzeFile } from "../audio/offline";
-import { KEY_THEME, PALETTES } from "../render/palettes";
+import { KEY_THEME, PALETTES, TEMPO_THEME } from "../render/palettes";
 import { encodeSettings } from "./urlSettings";
 import { frameSourceFor, type RenderHost } from "./renderHost";
 import { setApp, setPlayback, useApp, type Settings, type SourceInfo } from "./store";
@@ -97,7 +97,7 @@ export function cycle(what: "mode" | "theme"): void {
       mode: modes[(modes.indexOf(s.mode as (typeof modes)[number]) + 1) % modes.length]!,
     });
   } else {
-    const themes = [...PALETTES.map((p) => p.id), KEY_THEME.id];
+    const themes = [TEMPO_THEME.id, ...PALETTES.map((p) => p.id), KEY_THEME.id];
     updateSettings({ theme: themes[(themes.indexOf(s.theme) + 1) % themes.length]! });
   }
 }
@@ -252,13 +252,13 @@ export function startMic(deviceId?: string, label = "Microphone"): Promise<void>
   return open({ kind: "mic", label }, (e) => e.startMic(deviceId));
 }
 
-export function startTab(): Promise<void> {
+export function startTab(label = "Shared tab"): Promise<void> {
   if (!useApp.getState().caps?.tabAudio) {
     setApp({ error: appError("tab-unsupported") });
     return Promise.resolve();
   }
   clearTimeline();
-  return open({ kind: "tab", label: "Shared tab" }, (e) => e.startTab());
+  return open({ kind: "tab", label }, (e) => e.startTab());
 }
 
 export function stopSource(): void {

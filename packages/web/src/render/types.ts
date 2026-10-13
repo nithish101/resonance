@@ -26,7 +26,7 @@ export interface RenderSettings {
 
 export const DEFAULT_SETTINGS: RenderSettings = {
   mode: "tunnel",
-  theme: "ember",
+  theme: "tempo",
   intensity: 1,
   reducedMotion: false,
   particles: 200_000,

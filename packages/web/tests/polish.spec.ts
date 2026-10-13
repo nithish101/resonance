@@ -29,7 +29,8 @@ test.describe("shortcuts and shareable settings (UI-4)", () => {
   }) => {
     await page.goto("/");
     await page.keyboard.press("m");
-    await page.keyboard.press("t");
+    await page.keyboard.press("t"); // tempo (default) -> ember
+    await page.keyboard.press("t"); // -> tide
     expect(await settings(page)).toMatchObject({ mode: "nebula", theme: "tide" });
     await expect(page).toHaveURL(/#.*mode=nebula/);
     await expect(page).toHaveURL(/theme=tide/);

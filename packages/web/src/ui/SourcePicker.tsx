@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AudioEngine } from "../audio/engine";
+import { LISTEN_ALONG, youtubeTarget, youtubeUrl } from "../audio/listenAlong";
 import { CALIBRATION_TRACK, TRACKS } from "../audio/tracks";
 import { flags, playFile, playTrack, startMic, startTab } from "../app/controller";
 import { useApp } from "../app/store";
@@ -27,6 +28,13 @@ export function SourcePicker() {
   }, [caps?.mic]);
 
   const labelled = devices.filter((d) => d.label);
+  // Listen along: the YouTube tab we just opened, waiting for the user to share it.
+  const [opened, setOpened] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const openYoutube = (url: string, label: string) => {
+    window.open(url, "_blank", "noopener");
+    setOpened(label);
+  };
 
   return (
     <div className="picker" role="dialog" aria-labelledby="picker-title">
@@ -55,6 +63,86 @@ export function SourcePicker() {
             </li>
           ))}
         </ul>
+      </section>
+
+      <section aria-labelledby="yt-label" data-testid="listen-along">
+        <p className="label" id="yt-label">
+          House on YouTube · {LISTEN_ALONG.length} tracks
+        </p>
+        {opened ? (
+          <div className="step" role="status">
+            <p>
+              <strong>{opened}</strong> is open in a new tab. Start it playing, come back here, and
+              share that tab:{" "}
+              {caps?.tabAudio
+                ? 'pick it under "Chrome Tab" and turn on "Share tab audio".'
+                : "this browser can't capture tabs, so route it through a loopback input and pick that as the microphone."}
+            </p>
+            <div className="row">
+              {caps?.tabAudio && (
+                <button
+                  className="btn primary"
+                  onClick={() => void startTab(`${opened} (YouTube)`)}
+                  data-testid="capture-youtube"
+                >
+                  <TabIcon /> Capture that tab
+                </button>
+              )}
+              <button className="btn" onClick={() => setOpened(null)}>
+                Back to the list
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <ul className="tracks scroll">
+              {LISTEN_ALONG.map((t) => (
+                <li key={t.videoId}>
+                  <button
+                    className="track"
+                    onClick={() => openYoutube(youtubeUrl(t.videoId), `${t.title} by ${t.artist}`)}
+                    data-testid={`yt-${t.videoId}`}
+                  >
+                    <span>
+                      <span className="title">{t.title}</span>
+                      <span className="artist">{t.artist}</span>
+                    </span>
+                    <span className="meta">YouTube ↗</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <form
+              className="row yt-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const url = youtubeTarget(query);
+                if (url)
+                  openYoutube(
+                    url,
+                    query.trim().startsWith("http") ? "Your YouTube link" : `"${query.trim()}"`,
+                  );
+              }}
+            >
+              <input
+                className="device"
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Paste a YouTube link or search"
+                aria-label="YouTube link or search"
+                data-testid="yt-query"
+              />
+              <button className="btn" type="submit" disabled={!youtubeTarget(query)}>
+                Open
+              </button>
+            </form>
+            <p className="hint">
+              Opens the official upload in a new tab; Resonance never loads YouTube itself, it only
+              listens to the tab you share.
+            </p>
+          </>
+        )}
       </section>
 
       <section aria-labelledby="own-label">

@@ -248,3 +248,19 @@ Real problems hit during the build and how they were solved. Source for the READ
   no rendered frames (software rendering with bloom on a 2-core runner) used to report 0 ms lead
   and sync; the core now keeps the last real reading, and adaptive quality drops bloom before it
   drops resolution.
+
+## After the PRD (2026-10-12)
+
+Owner requests:
+
+- **Colours follow the tempo.** A "Follow the tempo" theme (now the default) interpolates
+  between five anchor palettes by BPM, easing toward the current tempo with a 3 s time
+  constant so estimates settling never flicker the colours. Unit tests check smoothness, the
+  slow/house/fast character, and that no tempo produces saturated red (AX-2). The first anchors
+  interpolated a hue phase from 0.0 to 0.9 the long way round the colour wheel (a visible jump
+  between 124 and 140 BPM); phases are now written as continuous values.
+- **House on YouTube.** 15 popular house tracks in the source picker, each verified with
+  YouTube's oEmbed endpoint as an upload on the artist's official, VEVO, or Topic channel. A track
+  opens in a new tab, and the picker then offers "Capture that tab" (IN-4). A box also takes any
+  pasted YouTube link or a search. Resonance never loads YouTube itself. e2e tests stub YouTube
+  and check the opened URLs and the capture flow.
